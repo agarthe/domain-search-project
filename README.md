@@ -18,10 +18,12 @@ A modern, Domainr.com-inspired domain search and availability checker built with
 
 ## 🌐 URLs
 
-- **Production**: (Will be available after deployment)
-- **Admin Panel**: `/admin`
-- **API Endpoint**: `/api/search`
-- **GitHub**: (Will be configured)
+- **Sandbox Demo**: https://3000-iv1vxn8zmieucln7qg72m-18e660f9.sandbox.novita.ai
+- **Admin Panel**: https://3000-iv1vxn8zmieucln7qg72m-18e660f9.sandbox.novita.ai/admin
+- **API Endpoint**: https://3000-iv1vxn8zmieucln7qg72m-18e660f9.sandbox.novita.ai/api/search
+- **Project Backup**: https://page.gensparksite.com/project_backups/domain-search-app-v1.tar.gz
+- **Production**: (Ready to deploy to Cloudflare Pages)
+- **GitHub**: (Ready for GitHub integration)
 
 ## 📊 Data Architecture
 
@@ -334,8 +336,10 @@ npm run deploy:prod
 ## 📈 Deployment Status
 
 - **Platform**: Cloudflare Pages
-- **Status**: ⏳ Ready for deployment
+- **Status**: ✅ Development complete, tested and ready for production
+- **Sandbox**: ✅ Running at https://3000-iv1vxn8zmieucln7qg72m-18e660f9.sandbox.novita.ai
 - **Tech Stack**: Hono + TypeScript + TailwindCSS + D1 Database
+- **Backup**: ✅ Available at https://page.gensparksite.com/project_backups/domain-search-app-v1.tar.gz
 - **Last Updated**: 2025-10-18
 
 ## 🎯 Recommended Next Steps
