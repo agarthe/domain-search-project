@@ -108,14 +108,17 @@ app.post('/api/search', async (c) => {
         }, [])
         .slice(0, 5) // Limit to top 5 registrars
 
-      results.push({
-        domain,
-        tld,
-        status,
-        registrars: status === 'available' ? domainRegistrars : undefined,
-        whois: status === 'taken' ? whoisData : undefined,
-        cached: cached ? !isCacheExpired(cached.last_checked as string) : false
-      })
+      // Only add domains that have a TLD
+      if (tld && tld.length > 0) {
+        results.push({
+          domain,
+          tld,
+          status,
+          registrars: status === 'available' ? domainRegistrars : undefined,
+          whois: status === 'taken' ? whoisData : undefined,
+          cached: cached ? !isCacheExpired(cached.last_checked as string) : false
+        })
+      }
     }
 
     const response: SearchResponse = {
@@ -564,13 +567,22 @@ app.get('/', (c) => {
             <!-- Search Box -->
             <div class="max-w-3xl mx-auto mb-8">
                 <div class="flex gap-2">
-                    <input 
-                        type="text" 
-                        id="searchInput" 
-                        class="flex-1 px-6 py-4 text-lg rounded-lg search-box"
-                        placeholder="Enter a domain or keyword..."
-                        data-i18n-placeholder="search.placeholder"
-                    >
+                    <div class="flex-1 relative">
+                        <input 
+                            type="text" 
+                            id="searchInput" 
+                            class="w-full px-6 py-4 pr-12 text-lg rounded-lg search-box"
+                            placeholder="Enter a domain or keyword..."
+                            data-i18n-placeholder="search.placeholder"
+                        >
+                        <button 
+                            id="clearBtn" 
+                            class="absolute right-3 top-1/2 transform -translate-y-1/2 px-2 py-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition hidden"
+                            title="Clear search"
+                        >
+                            <i class="fas fa-times-circle text-xl"></i>
+                        </button>
+                    </div>
                     <button 
                         id="searchBtn" 
                         class="px-8 py-4 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"

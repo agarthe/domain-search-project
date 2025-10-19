@@ -247,15 +247,40 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Real-time search (debounced)
-  document.getElementById('searchInput').addEventListener('input', (e) => {
+  const searchInput = document.getElementById('searchInput');
+  const clearBtn = document.getElementById('clearBtn');
+  
+  searchInput.addEventListener('input', (e) => {
     clearTimeout(searchTimeout);
     const query = e.target.value;
+    
+    // Show/hide clear button
+    if (query.length > 0) {
+      clearBtn.classList.remove('hidden');
+    } else {
+      clearBtn.classList.add('hidden');
+    }
     
     if (query.length >= 3) {
       searchTimeout = setTimeout(() => {
         searchDomains(query);
       }, 500);
+    } else if (query.length === 0) {
+      // Show empty state when search is cleared
+      document.getElementById('loadingState').classList.add('hidden');
+      document.getElementById('resultsContainer').classList.add('hidden');
+      document.getElementById('emptyState').classList.remove('hidden');
     }
+  });
+
+  // Clear button
+  clearBtn.addEventListener('click', () => {
+    searchInput.value = '';
+    clearBtn.classList.add('hidden');
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('resultsContainer').classList.add('hidden');
+    document.getElementById('emptyState').classList.remove('hidden');
+    searchInput.focus();
   });
 
   // Close modal
