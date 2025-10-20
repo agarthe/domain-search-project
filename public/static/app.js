@@ -27,8 +27,11 @@ const translations = {
     'domain.unknown': 'Unknown',
     'domain.register': 'Register at',
     'domain.whois': 'View WHOIS',
+    'domain.details': 'View Details',
     'whois.title': 'WHOIS Information',
     'whois.loading': 'Loading WHOIS data...',
+    'modal.registrars': 'Available Registrars',
+    'modal.cheapest': 'Cheapest',
     'error.search': 'Failed to search domains. Please try again.',
     'error.whois': 'Failed to load WHOIS data.'
   },
@@ -48,8 +51,11 @@ const translations = {
     'domain.unknown': '不明',
     'domain.register': '登録先:',
     'domain.whois': 'WHOIS表示',
+    'domain.details': '詳細表示',
     'whois.title': 'WHOIS情報',
     'whois.loading': 'WHOISデータを読み込み中...',
+    'modal.registrars': '利用可能なレジストラ',
+    'modal.cheapest': '最安値',
     'error.search': 'ドメイン検索に失敗しました。もう一度お試しください。',
     'error.whois': 'WHOISデータの読み込みに失敗しました。'
   }
@@ -142,7 +148,7 @@ function displayResults(data) {
 
 function createDomainCard(result, index) {
   const card = document.createElement('div');
-  card.className = 'domain-card rounded-lg p-4 fade-in';
+  card.className = 'domain-card rounded-lg p-4 fade-in cursor-pointer hover:shadow-lg';
   card.style.animationDelay = `${index * 0.05}s`;
 
   const statusClass = result.status === 'available' ? 'status-available' : 
@@ -150,77 +156,108 @@ function createDomainCard(result, index) {
                       'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300';
 
   let content = `
-    <div class="flex items-center justify-between mb-2">
+    <div class="flex items-center justify-between">
       <div class="flex items-center space-x-3">
         <h4 class="text-lg font-semibold">${result.domain}</h4>
         <span class="px-3 py-1 rounded-full text-sm font-medium ${statusClass}">
           ${t('domain.' + result.status)}
         </span>
       </div>
+      <i class="fas fa-chevron-right text-gray-400"></i>
     </div>
   `;
 
+  card.innerHTML = content;
+  
+  // Store result data on the card
+  card.dataset.result = JSON.stringify(result);
+  
+  // Click handler to show details
+  card.addEventListener('click', () => {
+    showDomainDetails(result);
+  });
+  
+  return card;
+}
+
+function showDomainDetails(result) {
+  const modal = document.getElementById('domainModal');
+  const modalTitle = document.getElementById('modalTitle');
+  const content = document.getElementById('modalContent');
+  
+  modalTitle.textContent = result.domain;
+  modal.classList.remove('hidden');
+
   if (result.status === 'available' && result.registrars) {
-    content += `
-      <div class="mt-3">
-        <p class="text-sm mb-2" style="color: var(--text-secondary);">${t('domain.register')}</p>
-        <div class="flex flex-wrap gap-2">
-          ${result.registrars.map(reg => `
+    // Show registrars for available domains
+    content.innerHTML = `
+      <div class="space-y-4">
+        <div>
+          <h4 class="font-semibold mb-3 text-lg">${t('modal.registrars')}</h4>
+          <p class="text-sm mb-4" style="color: var(--text-secondary);">
+            ${result.registrars.length} registrar(s) available • Sorted by price
+          </p>
+        </div>
+        <div class="space-y-3">
+          ${result.registrars.map((reg, idx) => `
             <a href="${reg.register_url}" 
                target="_blank" 
                rel="noopener noreferrer"
-               class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm">
-              ${reg.logo_url ? `<img src="${reg.logo_url}" alt="${reg.name}" class="w-4 h-4 mr-2">` : ''}
-              ${reg.name}
-              ${reg.price ? ` - $${reg.price}` : ''}
+               class="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+               style="border-color: var(--border-color);">
+              <div class="flex items-center space-x-3">
+                ${reg.logo_url ? `<img src="${reg.logo_url}" alt="${reg.name}" class="w-8 h-8">` : ''}
+                <div>
+                  <div class="font-semibold">${reg.name}</div>
+                  ${reg.renewal_price ? `<div class="text-xs" style="color: var(--text-secondary);">Renewal: $${reg.renewal_price}</div>` : ''}
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-lg font-bold text-blue-600">
+                  ${reg.price ? `$${reg.price}` : 'N/A'}
+                </div>
+                ${idx === 0 && reg.price ? `<div class="text-xs text-green-600">${t('modal.cheapest')}</div>` : ''}
+              </div>
             </a>
           `).join('')}
         </div>
       </div>
     `;
   } else if (result.status === 'taken') {
-    content += `
-      <div class="mt-3">
-        <button onclick="showWhois('${result.domain}')" 
-                class="px-4 py-2 border rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition text-sm"
-                style="border-color: var(--border-color);">
-          <i class="fas fa-info-circle mr-2"></i>${t('domain.whois')}
-        </button>
+    // Show WHOIS for taken domains
+    content.innerHTML = '<div class="loader mx-auto"></div><p class="text-center mt-4">' + t('whois.loading') + '</p>';
+    
+    fetchWhoisData(result.domain).then(data => {
+      content.innerHTML = `
+        <div class="space-y-3">
+          <div>
+            <h4 class="font-semibold mb-1">Domain</h4>
+            <p style="color: var(--text-secondary);">${data.domain}</p>
+          </div>
+          <div>
+            <h4 class="font-semibold mb-1">WHOIS Data</h4>
+            <pre class="p-4 rounded overflow-x-auto text-xs" style="background-color: var(--bg-secondary);">${JSON.stringify(data.whois, null, 2)}</pre>
+          </div>
+        </div>
+      `;
+    }).catch(error => {
+      console.error('WHOIS error:', error);
+      content.innerHTML = `<p class="text-red-600">${t('error.whois')}</p>`;
+    });
+  } else {
+    // Unknown status
+    content.innerHTML = `
+      <div class="text-center py-8" style="color: var(--text-secondary);">
+        <i class="fas fa-question-circle text-4xl mb-3"></i>
+        <p>Status information unavailable</p>
       </div>
     `;
   }
-
-  card.innerHTML = content;
-  return card;
 }
 
-async function showWhois(domain) {
-  const modal = document.getElementById('whoisModal');
-  const content = document.getElementById('whoisContent');
-  
-  modal.classList.remove('hidden');
-  content.innerHTML = '<div class="loader mx-auto"></div><p class="text-center mt-4">' + t('whois.loading') + '</p>';
-
-  try {
-    const response = await axios.get(`/api/whois/${domain}`);
-    const data = response.data;
-
-    content.innerHTML = `
-      <div class="space-y-3">
-        <div>
-          <h4 class="font-semibold mb-1">Domain</h4>
-          <p style="color: var(--text-secondary);">${data.domain}</p>
-        </div>
-        <div>
-          <h4 class="font-semibold mb-1">WHOIS Data</h4>
-          <pre class="p-4 rounded overflow-x-auto text-xs" style="background-color: var(--bg-secondary);">${JSON.stringify(data.whois, null, 2)}</pre>
-        </div>
-      </div>
-    `;
-  } catch (error) {
-    console.error('WHOIS error:', error);
-    content.innerHTML = `<p class="text-red-600">${t('error.whois')}</p>`;
-  }
+async function fetchWhoisData(domain) {
+  const response = await axios.get(`/api/whois/${domain}`);
+  return response.data;
 }
 
 // ============================================
@@ -298,16 +335,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Close modal
   document.getElementById('closeModal').addEventListener('click', () => {
-    document.getElementById('whoisModal').classList.add('hidden');
+    document.getElementById('domainModal').classList.add('hidden');
   });
 
   // Close modal on outside click
-  document.getElementById('whoisModal').addEventListener('click', (e) => {
-    if (e.target.id === 'whoisModal') {
-      document.getElementById('whoisModal').classList.add('hidden');
+  document.getElementById('domainModal').addEventListener('click', (e) => {
+    if (e.target.id === 'domainModal') {
+      document.getElementById('domainModal').classList.add('hidden');
     }
   });
 });
-
-// Make showWhois available globally
-window.showWhois = showWhois;

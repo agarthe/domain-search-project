@@ -106,7 +106,14 @@ app.post('/api/search', async (c) => {
           }
           return acc
         }, [])
-        .slice(0, 5) // Limit to top 5 registrars
+        .sort((a, b) => {
+          // Sort by price (ascending) - cheapest first
+          if (a.price && b.price) return a.price - b.price;
+          if (a.price) return -1;
+          if (b.price) return 1;
+          return 0;
+        })
+        .slice(0, 10) // Show top 10 cheapest registrars
 
       // Only add domains that have a TLD
       if (tld && tld.length > 0) {
@@ -120,6 +127,12 @@ app.post('/api/search', async (c) => {
         })
       }
     }
+
+    // Sort results: available first, then taken, then unknown
+    results.sort((a, b) => {
+      const statusOrder = { available: 0, taken: 1, unknown: 2 };
+      return statusOrder[a.status] - statusOrder[b.status];
+    });
 
     const response: SearchResponse = {
       query: normalized,
@@ -604,21 +617,21 @@ app.get('/', (c) => {
             </div>
         </main>
 
-        <!-- WHOIS Modal -->
-        <div id="whoisModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <!-- Domain Details Modal -->
+        <div id="domainModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div class="domain-card max-w-2xl w-full rounded-lg p-6 max-h-[80vh] overflow-y-auto">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-bold" data-i18n="whois.title">WHOIS Information</h3>
+                    <h3 class="text-xl font-bold" id="modalTitle">Domain Details</h3>
                     <button id="closeModal" class="text-2xl hover:opacity-70">&times;</button>
                 </div>
-                <div id="whoisContent" class="text-sm">
+                <div id="modalContent" class="text-sm">
                     <div class="loader mx-auto"></div>
                 </div>
             </div>
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <script src="/static/app.js?v=2"></script>
+        <script src="/static/app.js?v=3"></script>
     </body>
     </html>
   `)
