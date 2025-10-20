@@ -556,11 +556,6 @@ app.get('/', (c) => {
 
         <!-- Main Content -->
         <main class="max-w-7xl mx-auto px-4 py-8">
-            <!-- Hero Section -->
-            <div class="text-center mb-12">
-                <h2 class="text-4xl font-bold mb-4" data-i18n="hero.title">Find Your Perfect Domain</h2>
-            </div>
-
             <!-- Search Box -->
             <div class="max-w-3xl mx-auto mb-8">
                 <div class="relative">
@@ -606,14 +601,6 @@ app.get('/', (c) => {
                 <div id="resultsList" class="space-y-3">
                     <!-- Results will be inserted here -->
                 </div>
-            </div>
-
-            <!-- Empty State -->
-            <div id="emptyState" class="text-center py-12">
-                <i class="fas fa-search text-6xl mb-4" style="color: var(--text-secondary);"></i>
-                <p class="text-xl" style="color: var(--text-secondary);" data-i18n="empty.message">
-                    Start searching for your perfect domain name
-                </p>
             </div>
         </main>
 
