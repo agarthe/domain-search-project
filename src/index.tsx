@@ -451,7 +451,7 @@ app.get('/', (c) => {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Domain Search - Find Your Perfect Domain</title>
+        <title>inu.name - Find Your Perfect Domain</title>
         <meta name="description" content="Search and check domain availability instantly. Find the perfect domain name for your project.">
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
@@ -547,7 +547,7 @@ app.get('/', (c) => {
             <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
                 <div class="flex items-center space-x-2">
                     <i class="fas fa-globe text-blue-600 text-2xl"></i>
-                    <h1 class="text-xl font-bold">Domain Search</h1>
+                    <h1 class="text-xl font-bold">inu.name</h1>
                 </div>
                 <div class="flex items-center space-x-4">
                     <!-- Language Toggle -->
@@ -617,6 +617,60 @@ app.get('/', (c) => {
             </div>
         </main>
 
+        <!-- Footer -->
+        <footer style="background-color: var(--bg-secondary); border-top: 1px solid var(--border-color);" class="mt-16">
+            <div class="max-w-7xl mx-auto px-4 py-8">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+                    <!-- About -->
+                    <div>
+                        <div class="flex items-center space-x-2 mb-4">
+                            <i class="fas fa-globe text-blue-600 text-xl"></i>
+                            <h3 class="text-lg font-bold">inu.name</h3>
+                        </div>
+                        <p class="text-sm" style="color: var(--text-secondary);">
+                            Fast and simple domain name search tool. Find your perfect domain instantly.
+                        </p>
+                    </div>
+                    
+                    <!-- Quick Links -->
+                    <div>
+                        <h4 class="font-semibold mb-4">Quick Links</h4>
+                        <ul class="space-y-2 text-sm" style="color: var(--text-secondary);">
+                            <li><a href="/" class="hover:text-blue-600 transition">Home</a></li>
+                            <li><a href="/admin" class="hover:text-blue-600 transition">Admin Panel</a></li>
+                            <li><a href="https://github.com" target="_blank" rel="noopener noreferrer" class="hover:text-blue-600 transition">
+                                <i class="fab fa-github mr-1"></i>GitHub
+                            </a></li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Contact & Social -->
+                    <div>
+                        <h4 class="font-semibold mb-4">Connect</h4>
+                        <div class="flex space-x-4">
+                            <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" 
+                               class="text-2xl hover:text-blue-400 transition" style="color: var(--text-secondary);">
+                                <i class="fab fa-twitter"></i>
+                            </a>
+                            <a href="https://github.com" target="_blank" rel="noopener noreferrer" 
+                               class="text-2xl hover:text-gray-700 dark:hover:text-gray-300 transition" style="color: var(--text-secondary);">
+                                <i class="fab fa-github"></i>
+                            </a>
+                            <a href="mailto:info@inu.name" 
+                               class="text-2xl hover:text-blue-600 transition" style="color: var(--text-secondary);">
+                                <i class="fas fa-envelope"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Copyright -->
+                <div class="pt-8 border-t text-center text-sm" style="border-color: var(--border-color); color: var(--text-secondary);">
+                    <p>&copy; 2025 inu.name. All rights reserved. Built with Hono & Cloudflare Pages.</p>
+                </div>
+            </div>
+        </footer>
+
         <!-- Domain Details Modal -->
         <div id="domainModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div class="domain-card max-w-2xl w-full rounded-lg p-6 max-h-[80vh] overflow-y-auto">
@@ -647,7 +701,7 @@ app.get('/admin', (c) => {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Admin Panel - Domain Search</title>
+        <title>Admin Panel - inu.name</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <style>
@@ -698,7 +752,7 @@ app.get('/admin', (c) => {
             <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
                 <div class="flex items-center space-x-2">
                     <i class="fas fa-cog text-blue-600 text-2xl"></i>
-                    <h1 class="text-xl font-bold">Admin Panel</h1>
+                    <h1 class="text-xl font-bold">inu.name Admin</h1>
                 </div>
                 <div class="flex items-center space-x-4">
                     <button id="themeToggle" class="px-3 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700">
