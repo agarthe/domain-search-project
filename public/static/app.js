@@ -93,19 +93,24 @@ function switchLanguage(lang) {
 // Search Functions
 // ============================================
 async function searchDomains(query) {
+  console.log('searchDomains called with:', query);
   if (!query || query.trim().length === 0) {
+    console.log('Empty query, returning');
     return;
   }
 
   // Show loading state
+  console.log('Showing loading state');
   const emptyState = document.getElementById('emptyState');
   if (emptyState) emptyState.classList.add('hidden');
   document.getElementById('resultsContainer').classList.add('hidden');
   document.getElementById('loadingState').classList.remove('hidden');
 
   try {
+    console.log('Calling API...');
     const response = await axios.post('/api/search', { query });
     const data = response.data;
+    console.log('API response:', data);
 
     displayResults(data);
   } catch (error) {
@@ -118,17 +123,21 @@ async function searchDomains(query) {
 }
 
 function displayResults(data) {
+  console.log('Displaying results:', data.results.length);
   document.getElementById('loadingState').classList.add('hidden');
   document.getElementById('resultsContainer').classList.remove('hidden');
   document.getElementById('resultCount').textContent = data.results.length;
 
   const resultsList = document.getElementById('resultsList');
+  console.log('Results list element:', resultsList);
   resultsList.innerHTML = '';
 
   data.results.forEach((result, index) => {
     const card = createDomainCard(result, index);
+    console.log('Created card for:', result.domain);
     resultsList.appendChild(card);
   });
+  console.log('All cards appended');
 }
 
 function createDomainCard(result, index) {
