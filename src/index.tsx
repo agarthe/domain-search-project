@@ -559,41 +559,33 @@ app.get('/', (c) => {
             <!-- Hero Section -->
             <div class="text-center mb-12">
                 <h2 class="text-4xl font-bold mb-4" data-i18n="hero.title">Find Your Perfect Domain</h2>
-                <p class="text-lg" style="color: var(--text-secondary);" data-i18n="hero.subtitle">
-                    Search millions of domains and check availability instantly
-                </p>
             </div>
 
             <!-- Search Box -->
             <div class="max-w-3xl mx-auto mb-8">
-                <div class="flex gap-2">
-                    <div class="flex-1 relative">
-                        <input 
-                            type="text" 
-                            id="searchInput" 
-                            class="w-full px-6 py-4 pr-12 text-lg rounded-lg search-box"
-                            placeholder="Enter a domain or keyword..."
-                            data-i18n-placeholder="search.placeholder"
-                        >
-                        <button 
-                            id="clearBtn" 
-                            class="absolute right-3 top-1/2 transform -translate-y-1/2 px-2 py-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition hidden"
-                            title="Clear search"
-                        >
-                            <i class="fas fa-times-circle text-xl"></i>
-                        </button>
-                    </div>
-                    <button 
-                        id="searchBtn" 
-                        class="px-8 py-4 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
-                        data-i18n="search.button"
+                <div class="relative">
+                    <input 
+                        type="text" 
+                        id="searchInput" 
+                        class="w-full px-6 py-4 pr-12 text-lg rounded-lg search-box"
+                        placeholder="Enter a domain or keyword..."
+                        data-i18n-placeholder="search.placeholder"
                     >
-                        <i class="fas fa-search mr-2"></i>Search
+                    <button 
+                        id="clearBtn" 
+                        class="absolute right-3 top-1/2 transform -translate-y-1/2 px-2 py-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition hidden"
+                        title="Clear search"
+                    >
+                        <i class="fas fa-times-circle text-xl"></i>
                     </button>
                 </div>
-                <div class="mt-2 text-sm" style="color: var(--text-secondary);">
-                    <span data-i18n="search.example">Example:</span> myproject, awesome-app, mybusiness.com
-                </div>
+                <button 
+                    id="searchBtn" 
+                    class="hidden px-8 py-4 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
+                    data-i18n="search.button"
+                >
+                    <i class="fas fa-search mr-2"></i>Search
+                </button>
             </div>
 
             <!-- Loading State -->
