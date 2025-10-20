@@ -98,7 +98,8 @@ async function searchDomains(query) {
   }
 
   // Show loading state
-  document.getElementById('emptyState').classList.add('hidden');
+  const emptyState = document.getElementById('emptyState');
+  if (emptyState) emptyState.classList.add('hidden');
   document.getElementById('resultsContainer').classList.add('hidden');
   document.getElementById('loadingState').classList.remove('hidden');
 
@@ -111,7 +112,8 @@ async function searchDomains(query) {
     console.error('Search error:', error);
     alert(t('error.search'));
     document.getElementById('loadingState').classList.add('hidden');
-    document.getElementById('emptyState').classList.remove('hidden');
+    const emptyState = document.getElementById('emptyState');
+    if (emptyState) emptyState.classList.remove('hidden');
   }
 }
 
@@ -266,10 +268,11 @@ document.addEventListener('DOMContentLoaded', () => {
         searchDomains(query);
       }, 500);
     } else if (query.length === 0) {
-      // Show empty state when search is cleared
+      // Hide results when search is cleared
       document.getElementById('loadingState').classList.add('hidden');
       document.getElementById('resultsContainer').classList.add('hidden');
-      document.getElementById('emptyState').classList.remove('hidden');
+      const emptyState = document.getElementById('emptyState');
+      if (emptyState) emptyState.classList.remove('hidden');
     }
   });
 
@@ -279,7 +282,8 @@ document.addEventListener('DOMContentLoaded', () => {
     clearBtn.classList.add('hidden');
     document.getElementById('loadingState').classList.add('hidden');
     document.getElementById('resultsContainer').classList.add('hidden');
-    document.getElementById('emptyState').classList.remove('hidden');
+    const emptyState = document.getElementById('emptyState');
+    if (emptyState) emptyState.classList.remove('hidden');
     searchInput.focus();
   });
 
