@@ -453,6 +453,8 @@ app.get('/', (c) => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>inu.name - Find Your Perfect Domain</title>
         <meta name="description" content="Search and check domain availability instantly. Find the perfect domain name for your project.">
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2248%22 fill=%22%233b82f6%22/><text x=%2250%22 y=%2255%22 font-size=%2260%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22>🐕</text></svg>">
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg">
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <style>
@@ -546,7 +548,7 @@ app.get('/', (c) => {
         <header style="background-color: var(--bg-secondary); border-bottom: 1px solid var(--border-color);" class="sticky top-0 z-50">
             <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
                 <div class="flex items-center space-x-2">
-                    <i class="fas fa-globe text-blue-600 text-2xl"></i>
+                    <i class="fas fa-dog text-blue-600 text-2xl"></i>
                     <h1 class="text-xl font-bold">inu.name</h1>
                 </div>
                 <div class="flex items-center space-x-4">
@@ -624,7 +626,7 @@ app.get('/', (c) => {
                     <!-- About -->
                     <div>
                         <div class="flex items-center space-x-2 mb-4">
-                            <i class="fas fa-globe text-blue-600 text-xl"></i>
+                            <i class="fas fa-dog text-blue-600 text-xl"></i>
                             <h3 class="text-lg font-bold">inu.name</h3>
                         </div>
                         <p class="text-sm" style="color: var(--text-secondary);">
@@ -702,6 +704,8 @@ app.get('/admin', (c) => {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Admin Panel - inu.name</title>
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2248%22 fill=%22%233b82f6%22/><text x=%2250%22 y=%2255%22 font-size=%2260%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22>🐕</text></svg>">
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg">
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <style>
