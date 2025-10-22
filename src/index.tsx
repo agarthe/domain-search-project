@@ -541,6 +541,26 @@ app.get('/', (c) => {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
           }
+          
+          /* Sticky footer layout */
+          html, body {
+            height: 100%;
+            margin: 0;
+          }
+          
+          body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+          }
+          
+          main {
+            flex: 1 0 auto;
+          }
+          
+          footer {
+            flex-shrink: 0;
+          }
         </style>
     </head>
     <body>
@@ -549,7 +569,12 @@ app.get('/', (c) => {
             <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
                 <div class="flex items-center space-x-2">
                     <i class="fas fa-dog text-blue-600 text-2xl"></i>
-                    <h1 class="text-xl font-bold">inu.name</h1>
+                    <div>
+                        <div class="text-xs" style="color: var(--text-secondary);">
+                            <span data-i18n="tagline">Fetch Domain, Woof!</span>
+                        </div>
+                        <h1 class="text-xl font-bold">inu.name</h1>
+                    </div>
                 </div>
                 <div class="flex items-center space-x-4">
                     <!-- Language Toggle -->
@@ -620,14 +645,19 @@ app.get('/', (c) => {
         </main>
 
         <!-- Footer -->
-        <footer style="background-color: var(--bg-secondary); border-top: 1px solid var(--border-color);" class="mt-16">
+        <footer style="background-color: var(--bg-secondary); border-top: 1px solid var(--border-color);">
             <div class="max-w-7xl mx-auto px-4 py-8">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
                     <!-- About -->
                     <div>
                         <div class="flex items-center space-x-2 mb-4">
                             <i class="fas fa-dog text-blue-600 text-xl"></i>
-                            <h3 class="text-lg font-bold">inu.name</h3>
+                            <div>
+                                <div class="text-xs" style="color: var(--text-secondary);">
+                                    <span data-i18n="tagline">Fetch Domain, Woof!</span>
+                                </div>
+                                <h3 class="text-lg font-bold">inu.name</h3>
+                            </div>
                         </div>
                         <p class="text-sm" style="color: var(--text-secondary);">
                             Fast and simple domain name search tool. Find your perfect domain instantly.
@@ -640,9 +670,6 @@ app.get('/', (c) => {
                         <ul class="space-y-2 text-sm" style="color: var(--text-secondary);">
                             <li><a href="/" class="hover:text-blue-600 transition">Home</a></li>
                             <li><a href="/admin" class="hover:text-blue-600 transition">Admin Panel</a></li>
-                            <li><a href="https://github.com" target="_blank" rel="noopener noreferrer" class="hover:text-blue-600 transition">
-                                <i class="fab fa-github mr-1"></i>GitHub
-                            </a></li>
                         </ul>
                     </div>
                     
@@ -653,10 +680,6 @@ app.get('/', (c) => {
                             <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" 
                                class="text-2xl hover:text-blue-400 transition" style="color: var(--text-secondary);">
                                 <i class="fab fa-twitter"></i>
-                            </a>
-                            <a href="https://github.com" target="_blank" rel="noopener noreferrer" 
-                               class="text-2xl hover:text-gray-700 dark:hover:text-gray-300 transition" style="color: var(--text-secondary);">
-                                <i class="fab fa-github"></i>
                             </a>
                             <a href="mailto:info@inu.name" 
                                class="text-2xl hover:text-blue-600 transition" style="color: var(--text-secondary);">
@@ -687,7 +710,7 @@ app.get('/', (c) => {
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <script src="/static/app.js?v=3"></script>
+        <script src="/static/app.js?v=4"></script>
     </body>
     </html>
   `)
@@ -728,6 +751,14 @@ app.get('/admin', (c) => {
           body {
             background-color: var(--bg-primary);
             color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            margin: 0;
+          }
+          
+          main {
+            flex: 1 0 auto;
           }
           
           .panel-card {

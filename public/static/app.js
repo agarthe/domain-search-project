@@ -12,6 +12,7 @@ let searchTimeout = null;
 // ============================================
 const translations = {
   en: {
+    'tagline': 'Fetch Domain, Woof!',
     'hero.title': 'Find Your Perfect Domain',
     'hero.subtitle': 'Search millions of domains and check availability instantly',
     'search.placeholder': 'Enter a domain or keyword...',
@@ -36,6 +37,7 @@ const translations = {
     'error.whois': 'Failed to load WHOIS data.'
   },
   ja: {
+    'tagline': 'ドメインさがすワン',
     'hero.title': '完璧なドメインを見つけよう',
     'hero.subtitle': '何百万ものドメインを検索して、すぐに利用可能性を確認',
     'search.placeholder': 'ドメインまたはキーワードを入力...',
@@ -203,7 +205,7 @@ function showDomainDetails(result) {
             <a href="${reg.register_url}" 
                target="_blank" 
                rel="noopener noreferrer"
-               class="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+               class="flex items-center justify-between p-4 border rounded-lg hover:bg-blue-50 dark:hover:bg-gray-800 transition"
                style="border-color: var(--border-color);">
               <div class="flex items-center space-x-3">
                 ${reg.logo_url ? `<img src="${reg.logo_url}" alt="${reg.name}" class="w-8 h-8">` : ''}
