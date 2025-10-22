@@ -5,7 +5,12 @@
 // ============================================
 let currentLang = localStorage.getItem('lang') || 'en';
 let currentTheme = localStorage.getItem('theme') || 'light';
+let currentCurrency = localStorage.getItem('currency') || (currentLang === 'ja' ? 'JPY' : 'USD');
 let searchTimeout = null;
+let lastSearchResults = null;
+
+// Exchange rate (USD to JPY, can be updated manually)
+const USD_TO_JPY = 150;
 
 // ============================================
 // i18n Translations
@@ -97,6 +102,33 @@ function switchLanguage(lang) {
   updateTranslations();
 }
 
+function switchCurrency(currency) {
+  currentCurrency = currency;
+  localStorage.setItem('currency', currency);
+  
+  // Update icon
+  const currencyIcon = document.getElementById('currencyIcon');
+  if (currencyIcon) {
+    currencyIcon.className = currency === 'USD' ? 'fas fa-dollar-sign' : 'fas fa-yen-sign';
+  }
+  
+  // Re-render results with new currency
+  if (lastSearchResults) {
+    displayResults(lastSearchResults);
+  }
+}
+
+function formatPrice(priceUSD) {
+  if (!priceUSD) return 'N/A';
+  
+  if (currentCurrency === 'JPY') {
+    const priceJPY = Math.round(priceUSD * USD_TO_JPY);
+    return `${priceJPY.toLocaleString()}円`;
+  } else {
+    return `$${priceUSD}`;
+  }
+}
+
 // ============================================
 // Search Functions
 // ============================================
@@ -132,9 +164,9 @@ async function searchDomains(query) {
 
 function displayResults(data) {
   console.log('Displaying results:', data.results.length);
+  lastSearchResults = data; // Store for currency switching
   document.getElementById('loadingState').classList.add('hidden');
   document.getElementById('resultsContainer').classList.remove('hidden');
-  document.getElementById('resultCount').textContent = data.results.length;
 
   const resultsList = document.getElementById('resultsList');
   console.log('Results list element:', resultsList);
@@ -205,18 +237,20 @@ function showDomainDetails(result) {
             <a href="${reg.register_url}" 
                target="_blank" 
                rel="noopener noreferrer"
-               class="flex items-center justify-between p-4 border rounded-lg hover:bg-blue-50 dark:hover:bg-gray-800 transition"
-               style="border-color: var(--border-color);">
+               class="registrar-card flex items-center justify-between p-4 border rounded-lg transition"
+               style="border-color: var(--border-color);"
+               onmouseenter="this.style.backgroundColor=document.documentElement.classList.contains('dark')?'#1f2937':'#fafafa'"
+               onmouseleave="this.style.backgroundColor='transparent'">
               <div class="flex items-center space-x-3">
                 ${reg.logo_url ? `<img src="${reg.logo_url}" alt="${reg.name}" class="w-8 h-8">` : ''}
                 <div>
                   <div class="font-semibold">${reg.name}</div>
-                  ${reg.renewal_price ? `<div class="text-xs" style="color: var(--text-secondary);">Renewal: $${reg.renewal_price}</div>` : ''}
+                  ${reg.renewal_price ? `<div class="text-xs" style="color: var(--text-secondary);">Renewal: ${formatPrice(reg.renewal_price)}</div>` : ''}
                 </div>
               </div>
               <div class="text-right">
                 <div class="text-lg font-bold text-blue-600">
-                  ${reg.price ? `$${reg.price}` : 'N/A'}
+                  ${formatPrice(reg.price)}
                 </div>
                 ${idx === 0 && reg.price ? `<div class="text-xs text-green-600">${t('modal.cheapest')}</div>` : ''}
               </div>
@@ -271,6 +305,9 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Apply saved language
   switchLanguage(currentLang);
+  
+  // Apply saved currency
+  switchCurrency(currentCurrency);
 
   // Theme toggle
   document.getElementById('themeToggle').addEventListener('click', () => {
@@ -279,8 +316,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Language toggle
   document.getElementById('langToggle').addEventListener('click', () => {
-    switchLanguage(currentLang === 'en' ? 'ja' : 'en');
+    const newLang = currentLang === 'en' ? 'ja' : 'en';
+    switchLanguage(newLang);
+    const newCurrency = newLang === 'ja' ? 'JPY' : 'USD';
+    switchCurrency(newCurrency);
   });
+  
+  // Currency toggle
+  const currencyToggle = document.getElementById('currencyToggle');
+  if (currencyToggle) {
+    currencyToggle.addEventListener('click', () => {
+      switchCurrency(currentCurrency === 'USD' ? 'JPY' : 'USD');
+    });
+  }
 
   // Search button
   document.getElementById('searchBtn').addEventListener('click', () => {

@@ -461,6 +461,7 @@ app.get('/', (c) => {
           :root {
             --bg-primary: #ffffff;
             --bg-secondary: #f9fafb;
+            --bg-header: #ffffff;
             --text-primary: #111827;
             --text-secondary: #6b7280;
             --border-color: #e5e7eb;
@@ -473,6 +474,7 @@ app.get('/', (c) => {
           .dark {
             --bg-primary: #111827;
             --bg-secondary: #1f2937;
+            --bg-header: #1f2937;
             --text-primary: #f9fafb;
             --text-secondary: #9ca3af;
             --border-color: #374151;
@@ -565,81 +567,94 @@ app.get('/', (c) => {
     </head>
     <body>
         <!-- Header -->
-        <header style="background-color: var(--bg-secondary); border-bottom: 1px solid var(--border-color);" class="sticky top-0 z-50">
-            <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-                <div class="flex items-center space-x-2">
-                    <i class="fas fa-dog text-blue-600 text-2xl"></i>
-                    <div>
-                        <div class="text-xs" style="color: var(--text-secondary);">
-                            <span data-i18n="tagline">Fetch Domain, Woof!</span>
+        <header style="background-color: var(--bg-header); border-bottom: 1px solid var(--border-color);" class="sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 py-4">
+                <div class="flex items-center" style="gap: 1.5rem;">
+                    <!-- Left: Logo and Title -->
+                    <div class="flex items-center flex-shrink-0" style="gap: 0.5rem;">
+                        <i class="fas fa-dog text-blue-600 text-2xl"></i>
+                        <div>
+                            <div class="text-xs" style="color: var(--text-secondary);">
+                                <span data-i18n="tagline">Fetch Domain, Woof!</span>
+                            </div>
+                            <h1 class="text-xl font-bold">inu.name</h1>
                         </div>
-                        <h1 class="text-xl font-bold">inu.name</h1>
                     </div>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <!-- Language Toggle -->
-                    <button id="langToggle" class="px-3 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition">
-                        <i class="fas fa-language mr-1"></i>
-                        <span id="currentLang">EN</span>
-                    </button>
-                    <!-- Theme Toggle -->
-                    <button id="themeToggle" class="px-3 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition">
-                        <i class="fas fa-moon" id="themeIcon"></i>
-                    </button>
-                    <!-- Admin Link -->
-                    <a href="/admin" class="px-3 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition">
-                        <i class="fas fa-cog"></i>
-                    </a>
+                    
+                    <!-- Search Box (right after title) -->
+                    <div class="w-96">
+                        <div class="relative">
+                            <input 
+                                type="text" 
+                                id="searchInput" 
+                                class="w-full px-4 py-2 pr-10 text-base rounded-lg search-box"
+                                placeholder="Enter a domain or keyword..."
+                                data-i18n-placeholder="search.placeholder"
+                            >
+                            <button 
+                                id="clearBtn" 
+                                class="absolute right-2 top-1/2 transform -translate-y-1/2 px-2 py-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition hidden"
+                                title="Clear search"
+                            >
+                                <i class="fas fa-times-circle text-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Right: Actions -->
+                    <div class="flex items-center space-x-2 flex-shrink-0 ml-auto">
+                        <!-- Language Toggle -->
+                        <button id="langToggle" class="px-3 py-1 rounded transition" style="border: 1px solid transparent;" onmouseover="this.style.backgroundColor='var(--bg-primary)'; this.style.borderColor='var(--border-color)';" onmouseout="this.style.backgroundColor='transparent'; this.style.borderColor='transparent';">
+                            <i class="fas fa-language mr-1"></i>
+                            <span id="currentLang">EN</span>
+                        </button>
+                        <!-- Currency Toggle -->
+                        <button id="currencyToggle" class="px-3 py-1 rounded transition" style="border: 1px solid transparent;" onmouseover="this.style.backgroundColor='var(--bg-primary)'; this.style.borderColor='var(--border-color)';" onmouseout="this.style.backgroundColor='transparent'; this.style.borderColor='transparent';" title="Switch Currency">
+                            <i class="fas fa-dollar-sign" id="currencyIcon"></i>
+                        </button>
+                        <!-- Theme Toggle -->
+                        <button id="themeToggle" class="px-3 py-1 rounded transition" style="border: 1px solid transparent;" onmouseover="this.style.backgroundColor='var(--bg-primary)'; this.style.borderColor='var(--border-color)';" onmouseout="this.style.backgroundColor='transparent'; this.style.borderColor='transparent';">
+                            <i class="fas fa-moon" id="themeIcon"></i>
+                        </button>
+                        <!-- Admin Link -->
+                        <a href="/admin" class="px-3 py-1 rounded transition" style="border: 1px solid transparent;" onmouseover="this.style.backgroundColor='var(--bg-primary)'; this.style.borderColor='var(--border-color)';" onmouseout="this.style.backgroundColor='transparent'; this.style.borderColor='transparent';">
+                            <i class="fas fa-cog"></i>
+                        </a>
+                    </div>
                 </div>
             </div>
         </header>
 
         <!-- Main Content -->
-        <main class="max-w-7xl mx-auto px-4 py-8">
-            <!-- Search Box -->
-            <div class="max-w-3xl mx-auto mb-8">
-                <div class="relative">
-                    <input 
-                        type="text" 
-                        id="searchInput" 
-                        class="w-full px-6 py-4 pr-12 text-lg rounded-lg search-box"
-                        placeholder="Enter a domain or keyword..."
-                        data-i18n-placeholder="search.placeholder"
-                    >
-                    <button 
-                        id="clearBtn" 
-                        class="absolute right-3 top-1/2 transform -translate-y-1/2 px-2 py-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition hidden"
-                        title="Clear search"
-                    >
-                        <i class="fas fa-times-circle text-xl"></i>
-                    </button>
-                </div>
-                <button 
-                    id="searchBtn" 
-                    class="hidden px-8 py-4 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
-                    data-i18n="search.button"
-                >
-                    <i class="fas fa-search mr-2"></i>Search
-                </button>
-            </div>
+        <main>
+            <div class="max-w-7xl mx-auto px-4 py-4">
+                <div class="flex items-start" style="gap: 1.5rem;">
+                    <!-- Left spacer (matches logo + title width) -->
+                    <div class="flex items-center flex-shrink-0" style="visibility: hidden; gap: 0.5rem;">
+                        <i class="fas fa-dog text-blue-600 text-2xl"></i>
+                        <div>
+                            <div class="text-xs">
+                                <span>Fetch Domain, Woof!</span>
+                            </div>
+                            <h1 class="text-xl font-bold">inu.name</h1>
+                        </div>
+                    </div>
+                    
+                    <!-- Results area (matches search box width) -->
+                    <div class="w-96">
+                        <!-- Loading State -->
+                        <div id="loadingState" class="hidden text-center py-12">
+                            <div class="loader mx-auto mb-4"></div>
+                            <p style="color: var(--text-secondary);" data-i18n="search.loading">Searching domains...</p>
+                        </div>
 
-            <!-- Loading State -->
-            <div id="loadingState" class="hidden text-center py-12">
-                <div class="loader mx-auto mb-4"></div>
-                <p style="color: var(--text-secondary);" data-i18n="search.loading">Searching domains...</p>
-            </div>
-
-            <!-- Results -->
-            <div id="resultsContainer" class="hidden">
-                <div class="mb-6">
-                    <h3 class="text-2xl font-bold" data-i18n="results.title">Search Results</h3>
-                    <p style="color: var(--text-secondary);">
-                        <span data-i18n="results.found">Found</span> <span id="resultCount">0</span> <span data-i18n="results.domains">domains</span>
-                    </p>
-                </div>
-                
-                <div id="resultsList" class="space-y-3">
-                    <!-- Results will be inserted here -->
+                        <!-- Results -->
+                        <div id="resultsContainer" class="hidden">
+                            <div id="resultsList" class="divide-y" style="border-color: var(--border-color);">
+                                <!-- Results will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
@@ -710,7 +725,7 @@ app.get('/', (c) => {
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <script src="/static/app.js?v=12"></script>
+        <script src="/static/app.js?v=13"></script>
     </body>
     </html>
   `)
