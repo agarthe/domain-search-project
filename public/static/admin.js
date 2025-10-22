@@ -397,6 +397,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Add buttons
   document.getElementById('addRegistrarBtn').addEventListener('click', addRegistrar);
   document.getElementById('addPricingBtn').addEventListener('click', addPricing);
+  
+  // Bulk import buttons
+  document.getElementById('bulkImportBtn').addEventListener('click', showBulkImportPanel);
+  document.getElementById('importExecuteBtn').addEventListener('click', executeBulkImport);
+  document.getElementById('importCancelBtn').addEventListener('click', hideBulkImportPanel);
 
   // Load initial data
   loadRegistrars();

@@ -710,7 +710,7 @@ app.get('/', (c) => {
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <script src="/static/app.js?v=4"></script>
+        <script src="/static/app.js?v=12"></script>
     </body>
     </html>
   `)
