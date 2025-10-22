@@ -338,14 +338,26 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Search button
-  document.getElementById('searchBtn').addEventListener('click', () => {
-    const query = document.getElementById('searchInput').value;
-    searchDomains(query);
-  });
+  // Search button (optional - only if exists)
+  const searchBtn = document.getElementById('searchBtn');
+  if (searchBtn) {
+    searchBtn.addEventListener('click', () => {
+      const query = document.getElementById('searchInput').value;
+      searchDomains(query);
+    });
+  }
+
+  // Get search elements
+  const searchInput = document.getElementById('searchInput');
+  const clearBtn = document.getElementById('clearBtn');
+  
+  if (!searchInput || !clearBtn) {
+    console.error('Search input or clear button not found');
+    return;
+  }
 
   // Search on Enter key
-  document.getElementById('searchInput').addEventListener('keypress', (e) => {
+  searchInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
       const query = e.target.value;
       searchDomains(query);
@@ -353,9 +365,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Real-time search (debounced)
-  const searchInput = document.getElementById('searchInput');
-  const clearBtn = document.getElementById('clearBtn');
-  
   searchInput.addEventListener('input', (e) => {
     clearTimeout(searchTimeout);
     const query = e.target.value;
