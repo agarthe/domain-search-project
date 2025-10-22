@@ -65,11 +65,17 @@ function renderRegistrars() {
     const row = document.createElement('tr');
     row.style.borderBottom = '1px solid var(--border-color)';
     row.innerHTML = `
+      <td class="py-3 px-4 font-mono text-sm text-gray-500">${reg.id}</td>
       <td class="py-3 px-4">${reg.name}</td>
       <td class="py-3 px-4">
-        <a href="${reg.website}" target="_blank" class="text-blue-600 hover:underline">
+        <a href="${reg.website}" target="_blank" class="text-blue-600 hover:underline text-sm">
           ${reg.website}
         </a>
+      </td>
+      <td class="py-3 px-4">
+        <div class="text-xs" style="color: var(--text-secondary); max-width: 300px; overflow: hidden; text-overflow: ellipsis;">
+          ${reg.affiliate_link_template}
+        </div>
       </td>
       <td class="py-3 px-4">
         <span class="px-2 py-1 rounded text-xs ${reg.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">

@@ -725,7 +725,7 @@ app.get('/', (c) => {
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <script src="/static/app.js?v=13"></script>
+        <script src="/static/app.js?v=14"></script>
     </body>
     </html>
   `)
@@ -845,8 +845,10 @@ app.get('/admin', (c) => {
                         <table class="w-full" id="registrarsTable">
                             <thead>
                                 <tr style="border-bottom: 1px solid var(--border-color);">
+                                    <th class="text-left py-3 px-4">ID</th>
                                     <th class="text-left py-3 px-4">Name</th>
                                     <th class="text-left py-3 px-4">Website</th>
+                                    <th class="text-left py-3 px-4">Affiliate URL</th>
                                     <th class="text-left py-3 px-4">Status</th>
                                     <th class="text-left py-3 px-4">Order</th>
                                     <th class="text-left py-3 px-4">Actions</th>

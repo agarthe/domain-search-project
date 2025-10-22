@@ -182,8 +182,16 @@ function displayResults(data) {
 
 function createDomainCard(result, index) {
   const card = document.createElement('div');
-  card.className = 'domain-card rounded-lg p-4 fade-in cursor-pointer hover:shadow-lg';
+  card.className = 'py-3 fade-in cursor-pointer transition';
   card.style.animationDelay = `${index * 0.05}s`;
+  
+  // Hover effect with light background
+  card.addEventListener('mouseenter', () => {
+    card.style.backgroundColor = document.documentElement.classList.contains('dark') ? '#1f2937' : '#fafafa';
+  });
+  card.addEventListener('mouseleave', () => {
+    card.style.backgroundColor = 'transparent';
+  });
 
   const statusClass = result.status === 'available' ? 'status-available' : 
                       result.status === 'taken' ? 'status-taken' : 
@@ -192,12 +200,12 @@ function createDomainCard(result, index) {
   let content = `
     <div class="flex items-center justify-between">
       <div class="flex items-center space-x-3">
-        <h4 class="text-lg font-semibold">${result.domain}</h4>
-        <span class="px-3 py-1 rounded-full text-sm font-medium ${statusClass}">
+        <h4 class="text-base font-semibold">${result.domain}</h4>
+        <span class="px-2 py-0.5 rounded-full text-xs font-medium ${statusClass}">
           ${t('domain.' + result.status)}
         </span>
       </div>
-      <i class="fas fa-chevron-right text-gray-400"></i>
+      <i class="fas fa-chevron-right text-gray-400 text-sm"></i>
     </div>
   `;
 
