@@ -54,6 +54,6 @@ INSERT OR IGNORE INTO registrar_pricing (registrar_id, tld, currency, price, ren
 
 -- Seed data for API keys (placeholders)
 INSERT OR IGNORE INTO api_keys (id, service_name, api_key, base_url, is_active) VALUES 
-  (1, 'whois_xml_api', 'YOUR_WHOIS_API_KEY', 'https://www.whoisxmlapi.com/whoisserver/WhoisService', 0),
+  (1, 'whois55_api', 'YOUR_WHOIS55_API_KEY', 'https://whois55.p.rapidapi.com', 0),
   (2, 'domain_check_api', 'YOUR_DOMAIN_API_KEY', 'https://api.domainsdb.info/v1', 0),
   (3, 'domainr_api', 'YOUR_DOMAINR_API_KEY', 'https://domainr.p.rapidapi.com/v2', 1);

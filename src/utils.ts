@@ -29,7 +29,8 @@ export function normalizeDomain(input: string): string {
 }
 
 /**
- * Fetch WHOIS data from external API
+ * Fetch WHOIS data from Whois55 API (RapidAPI)
+ * https://rapidapi.com/iaminwinter/api/whois55
  */
 export async function fetchWhoisData(domain: string, apiKey?: string): Promise<any> {
   // If no API key, return mock data
@@ -37,23 +38,23 @@ export async function fetchWhoisData(domain: string, apiKey?: string): Promise<a
     return {
       domain,
       status: 'API key not configured',
-      message: 'Please configure WHOIS API key in admin panel'
+      message: 'Please configure Whois55 API key in admin panel'
     };
   }
   
   try {
-    // Using WhoisXML API as example
-    const response = await fetch(
-      `https://www.whoisxmlapi.com/whoisserver/WhoisService?apiKey=${apiKey}&domainName=${domain}&outputFormat=JSON`,
-      {
-        headers: {
-          'Accept': 'application/json'
-        }
+    // Using Whois55 API via RapidAPI
+    const url = `https://whois55.p.rapidapi.com/api/v1/whois?domain=${encodeURIComponent(domain)}`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'X-RapidAPI-Key': apiKey,
+        'X-RapidAPI-Host': 'whois55.p.rapidapi.com'
       }
-    );
+    });
     
     if (!response.ok) {
-      throw new Error(`WHOIS API error: ${response.status}`);
+      throw new Error(`Whois55 API error: ${response.status}`);
     }
     
     const data = await response.json();

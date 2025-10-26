@@ -188,10 +188,10 @@ app.get('/api/whois/:domain', async (c) => {
     const domain = c.req.param('domain')
     const db = c.env.DB
 
-    // Get WHOIS API key
+    // Get Whois55 API key
     const apiKeyRecord = await db.prepare(`
       SELECT api_key FROM api_keys 
-      WHERE service_name = 'whois_xml_api' AND is_active = 1
+      WHERE service_name = 'whois55_api' AND is_active = 1
       LIMIT 1
     `).first() as ApiKey | null
 
@@ -1024,9 +1024,11 @@ app.get('/admin', (c) => {
             <div id="apikeysTab" class="tab-content hidden">
                 <div class="panel-card rounded-lg p-6 mb-6">
                     <h2 class="text-xl font-bold mb-4">Manage API Keys</h2>
+                    
+                    <!-- Domainr API Info -->
                     <div class="mb-4 p-4 bg-blue-50 dark:bg-blue-900 rounded-lg">
                         <h3 class="font-semibold mb-2 text-blue-800 dark:text-blue-200">
-                            <i class="fas fa-info-circle mr-2"></i>Domainr API (Required)
+                            <i class="fas fa-search mr-2"></i>Domainr API (Required)
                         </h3>
                         <p class="text-sm mb-2" style="color: var(--text-secondary);">
                             This application uses <strong>Domainr API</strong> for domain search and availability checking.
@@ -1036,6 +1038,22 @@ app.get('/admin', (c) => {
                             <li>Service name: <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">domainr_api</code></li>
                             <li>Set the RapidAPI key as the API Key value</li>
                             <li>Base URL is preset to: <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">https://domainr.p.rapidapi.com/v2</code></li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Whois55 API Info -->
+                    <div class="mb-4 p-4 bg-green-50 dark:bg-green-900 rounded-lg">
+                        <h3 class="font-semibold mb-2 text-green-800 dark:text-green-200">
+                            <i class="fas fa-info-circle mr-2"></i>Whois55 API (Optional)
+                        </h3>
+                        <p class="text-sm mb-2" style="color: var(--text-secondary);">
+                            This application uses <strong>Whois55 API</strong> for WHOIS information lookup.
+                        </p>
+                        <ul class="text-sm space-y-1 ml-4" style="color: var(--text-secondary); list-style: disc;">
+                            <li>Get API key from: <a href="https://rapidapi.com/iaminwinter/api/whois55" target="_blank" class="text-blue-600 hover:underline">RapidAPI - Whois55</a></li>
+                            <li>Service name: <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">whois55_api</code></li>
+                            <li>Set the RapidAPI key as the API Key value</li>
+                            <li>Base URL is preset to: <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">https://whois55.p.rapidapi.com</code></li>
                         </ul>
                     </div>
                 </div>
