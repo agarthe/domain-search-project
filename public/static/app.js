@@ -142,6 +142,16 @@ const translations = {
     'tooltip.renewal.detail': 'Fee to extend your domain\'s ownership period.',
     'tooltip.transfer': 'Fee for moving your domain',
     'tooltip.transfer.detail': 'Includes a free 1-year renewal.',
+    'whois.registration': 'Registration Information',
+    'whois.dates': 'Important Dates',
+    'whois.nameservers': 'Name Servers',
+    'whois.status': 'Domain Status',
+    'whois.contact': 'Contact Information',
+    'whois.domain': 'Domain',
+    'whois.registrar': 'Registrar',
+    'whois.created': 'Created',
+    'whois.expires': 'Expires',
+    'whois.updated': 'Updated',
     'error.search': 'Failed to search domains. Please try again.',
     'error.whois': 'Failed to load WHOIS data.'
   },
@@ -177,6 +187,16 @@ const translations = {
     'tooltip.renewal.detail': 'ドメインの保有期間を延長する際の料金です。',
     'tooltip.transfer': '他社からの転入料金',
     'tooltip.transfer.detail': 'この料金には、自動的に1年分の更新が含まれます。',
+    'whois.registration': '登録情報',
+    'whois.dates': '重要な日付',
+    'whois.nameservers': 'ネームサーバー',
+    'whois.status': 'ドメインステータス',
+    'whois.contact': '連絡先情報',
+    'whois.domain': 'ドメイン',
+    'whois.registrar': 'レジストラ',
+    'whois.created': '作成日',
+    'whois.expires': '有効期限',
+    'whois.updated': '更新日',
     'error.search': 'ドメイン検索に失敗しました。もう一度お試しください。',
     'error.whois': 'WHOISデータの読み込みに失敗しました。'
   }
@@ -187,6 +207,18 @@ const translations = {
 // ============================================
 function t(key) {
   return translations[currentLang][key] || key;
+}
+
+function formatDate(dateString) {
+  if (!dateString) return 'N/A';
+  
+  try {
+    const date = new Date(dateString);
+    const options = { year: 'numeric', month: 'short', day: 'numeric' };
+    return date.toLocaleDateString(currentLang === 'ja' ? 'ja-JP' : 'en-US', options);
+  } catch (e) {
+    return dateString;
+  }
 }
 
 function updateTranslations() {
@@ -495,18 +527,111 @@ function showDomainDetails(result) {
     content.innerHTML = '<div class="loader mx-auto"></div><p class="text-center mt-4">' + t('whois.loading') + '</p>';
     
     fetchWhoisData(result.domain).then(data => {
-      content.innerHTML = `
-        <div class="space-y-3">
-          <div>
-            <h4 class="font-semibold mb-1">Domain</h4>
-            <p style="color: var(--text-secondary);">${data.domain}</p>
+      const whois = data.whois;
+      
+      // Check if we have parsed data from Whois55 API
+      if (whois.parsed) {
+        const parsed = whois.parsed;
+        
+        // Build modern card-based layout
+        let cardsHtml = '';
+        
+        // Registration Info Card
+        if (parsed['Domain Name'] || parsed['Registry Domain ID'] || parsed['Registrar']) {
+          cardsHtml += `
+            <div class="p-4 rounded-lg" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);">
+              <div class="flex items-center mb-3">
+                <i class="fas fa-file-contract text-blue-600 mr-2"></i>
+                <h4 class="font-semibold">${t('whois.registration')}</h4>
+              </div>
+              <div class="space-y-2">
+                ${parsed['Domain Name'] ? `<div class="flex justify-between"><span style="color: var(--text-secondary);">${t('whois.domain')}:</span><span class="font-medium">${parsed['Domain Name']}</span></div>` : ''}
+                ${parsed['Registrar'] ? `<div class="flex justify-between"><span style="color: var(--text-secondary);">${t('whois.registrar')}:</span><span class="font-medium">${parsed['Registrar']}</span></div>` : ''}
+                ${parsed['Registry Domain ID'] ? `<div class="flex justify-between"><span style="color: var(--text-secondary);">Registry ID:</span><span class="font-mono text-sm">${parsed['Registry Domain ID']}</span></div>` : ''}
+              </div>
+            </div>
+          `;
+        }
+        
+        // Dates Card
+        if (parsed['Created Date'] || parsed['Expiry Date'] || parsed['Updated Date']) {
+          cardsHtml += `
+            <div class="p-4 rounded-lg" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);">
+              <div class="flex items-center mb-3">
+                <i class="fas fa-calendar text-green-600 mr-2"></i>
+                <h4 class="font-semibold">${t('whois.dates')}</h4>
+              </div>
+              <div class="space-y-2">
+                ${parsed['Created Date'] ? `<div class="flex justify-between"><span style="color: var(--text-secondary);">${t('whois.created')}:</span><span class="font-medium">${formatDate(parsed['Created Date'])}</span></div>` : ''}
+                ${parsed['Expiry Date'] ? `<div class="flex justify-between"><span style="color: var(--text-secondary);">${t('whois.expires')}:</span><span class="font-medium">${formatDate(parsed['Expiry Date'])}</span></div>` : ''}
+                ${parsed['Updated Date'] ? `<div class="flex justify-between"><span style="color: var(--text-secondary);">${t('whois.updated')}:</span><span class="font-medium">${formatDate(parsed['Updated Date'])}</span></div>` : ''}
+              </div>
+            </div>
+          `;
+        }
+        
+        // Name Servers Card
+        if (parsed['Name Server'] && Array.isArray(parsed['Name Server']) && parsed['Name Server'].length > 0) {
+          cardsHtml += `
+            <div class="p-4 rounded-lg" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);">
+              <div class="flex items-center mb-3">
+                <i class="fas fa-server text-purple-600 mr-2"></i>
+                <h4 class="font-semibold">${t('whois.nameservers')}</h4>
+              </div>
+              <div class="space-y-1">
+                ${parsed['Name Server'].map(ns => `<div class="font-mono text-sm px-2 py-1 rounded" style="background-color: var(--bg-primary);">${ns}</div>`).join('')}
+              </div>
+            </div>
+          `;
+        }
+        
+        // Domain Status Card
+        if (parsed['Domain Status'] && Array.isArray(parsed['Domain Status']) && parsed['Domain Status'].length > 0) {
+          cardsHtml += `
+            <div class="p-4 rounded-lg" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);">
+              <div class="flex items-center mb-3">
+                <i class="fas fa-shield-alt text-orange-600 mr-2"></i>
+                <h4 class="font-semibold">${t('whois.status')}</h4>
+              </div>
+              <div class="space-y-1">
+                ${parsed['Domain Status'].map(status => {
+                  const statusText = status.split(' ')[0];
+                  return `<div class="text-sm px-2 py-1 rounded" style="background-color: var(--bg-primary);"><span class="font-mono">${statusText}</span></div>`;
+                }).join('')}
+              </div>
+            </div>
+          `;
+        }
+        
+        // Contact Info Card
+        if (parsed['Registrar Abuse Contact Email'] || parsed['Registrar Abuse Contact Phone']) {
+          cardsHtml += `
+            <div class="p-4 rounded-lg" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);">
+              <div class="flex items-center mb-3">
+                <i class="fas fa-envelope text-red-600 mr-2"></i>
+                <h4 class="font-semibold">${t('whois.contact')}</h4>
+              </div>
+              <div class="space-y-2">
+                ${parsed['Registrar Abuse Contact Email'] ? `<div class="flex items-center"><i class="fas fa-envelope text-xs mr-2" style="color: var(--text-secondary);"></i><a href="mailto:${parsed['Registrar Abuse Contact Email']}" class="text-blue-600 hover:underline text-sm">${parsed['Registrar Abuse Contact Email']}</a></div>` : ''}
+                ${parsed['Registrar Abuse Contact Phone'] ? `<div class="flex items-center"><i class="fas fa-phone text-xs mr-2" style="color: var(--text-secondary);"></i><span class="text-sm">${parsed['Registrar Abuse Contact Phone']}</span></div>` : ''}
+              </div>
+            </div>
+          `;
+        }
+        
+        content.innerHTML = `
+          <div class="grid grid-cols-1 gap-4">
+            ${cardsHtml}
           </div>
-          <div>
-            <h4 class="font-semibold mb-1">WHOIS Data</h4>
-            <pre class="p-4 rounded overflow-x-auto text-xs" style="background-color: var(--bg-secondary);">${JSON.stringify(data.whois, null, 2)}</pre>
+        `;
+      } else {
+        // Fallback to JSON display if no parsed data
+        content.innerHTML = `
+          <div class="p-4 rounded-lg" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);">
+            <pre class="overflow-x-auto text-xs" style="color: var(--text-primary);">${JSON.stringify(whois, null, 2)}</pre>
           </div>
-        </div>
-      `;
+        `;
+      }
     }).catch(error => {
       console.error('WHOIS error:', error);
       content.innerHTML = `<p class="text-red-600">${t('error.whois')}</p>`;
