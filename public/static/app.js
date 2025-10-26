@@ -188,7 +188,7 @@ const translations = {
     'tooltip.transfer': '他社からの転入料金',
     'tooltip.transfer.detail': 'この料金には、自動的に1年分の更新が含まれます。',
     'whois.registration': '登録情報',
-    'whois.dates': '重要な日付',
+    'whois.dates': '日付情報',
     'whois.nameservers': 'ネームサーバー',
     'whois.status': 'ドメインステータス',
     'whois.contact': '連絡先情報',
@@ -334,7 +334,22 @@ function displayResults(data) {
   console.log('Results list element:', resultsList);
   resultsList.innerHTML = '';
 
-  data.results.forEach((result, index) => {
+  // Filter results: exclude unknown status and available domains without registrars
+  const filteredResults = data.results.filter(result => {
+    // Exclude unknown status
+    if (result.status === 'unknown') {
+      return false;
+    }
+    // Exclude available domains without registrars
+    if (result.status === 'available' && (!result.registrars || result.registrars.length === 0)) {
+      return false;
+    }
+    return true;
+  });
+
+  console.log('Filtered results:', filteredResults.length, 'from', data.results.length);
+
+  filteredResults.forEach((result, index) => {
     const card = createDomainCard(result, index);
     console.log('Created card for:', result.domain);
     resultsList.appendChild(card);
@@ -389,7 +404,14 @@ function showDomainDetails(result) {
   const modalTitle = document.getElementById('modalTitle');
   const content = document.getElementById('modalContent');
   
-  modalTitle.textContent = result.domain;
+  // Set title with external link
+  modalTitle.innerHTML = `
+    <a href="https://${result.domain}" target="_blank" rel="noopener noreferrer" 
+       class="hover:text-blue-600 transition flex items-center gap-2">
+      <span>${result.domain}</span>
+      <i class="fas fa-external-link-alt text-sm"></i>
+    </a>
+  `;
   modal.classList.remove('hidden');
 
   if (result.status === 'available' && result.registrars) {
@@ -539,15 +561,12 @@ function showDomainDetails(result) {
         // Registration Info Card
         if (parsed['Domain Name'] || parsed['Registry Domain ID'] || parsed['Registrar']) {
           cardsHtml += `
-            <div class="p-4 rounded-lg" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);">
-              <div class="flex items-center mb-3">
-                <i class="fas fa-file-contract text-blue-600 mr-2"></i>
-                <h4 class="font-semibold">${t('whois.registration')}</h4>
-              </div>
+            <div class="pb-4 mb-4" style="border-bottom: 1px solid var(--border-color);">
+              <h4 class="font-semibold mb-3 text-sm" style="color: var(--text-secondary);">${t('whois.registration')}</h4>
               <div class="space-y-2">
-                ${parsed['Domain Name'] ? `<div class="flex justify-between"><span style="color: var(--text-secondary);">${t('whois.domain')}:</span><span class="font-medium">${parsed['Domain Name']}</span></div>` : ''}
-                ${parsed['Registrar'] ? `<div class="flex justify-between"><span style="color: var(--text-secondary);">${t('whois.registrar')}:</span><span class="font-medium">${parsed['Registrar']}</span></div>` : ''}
-                ${parsed['Registry Domain ID'] ? `<div class="flex justify-between"><span style="color: var(--text-secondary);">Registry ID:</span><span class="font-mono text-sm">${parsed['Registry Domain ID']}</span></div>` : ''}
+                ${parsed['Domain Name'] ? `<div class="flex justify-between"><span style="color: var(--text-secondary); font-size: 0.875rem;">${t('whois.domain')}</span><span class="font-medium">${parsed['Domain Name']}</span></div>` : ''}
+                ${parsed['Registrar'] ? `<div class="flex justify-between"><span style="color: var(--text-secondary); font-size: 0.875rem;">${t('whois.registrar')}</span><span class="font-medium">${parsed['Registrar']}</span></div>` : ''}
+                ${parsed['Registry Domain ID'] ? `<div class="flex justify-between"><span style="color: var(--text-secondary); font-size: 0.875rem;">Registry ID</span><span class="font-mono text-sm">${parsed['Registry Domain ID']}</span></div>` : ''}
               </div>
             </div>
           `;
@@ -556,15 +575,12 @@ function showDomainDetails(result) {
         // Dates Card
         if (parsed['Created Date'] || parsed['Expiry Date'] || parsed['Updated Date']) {
           cardsHtml += `
-            <div class="p-4 rounded-lg" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);">
-              <div class="flex items-center mb-3">
-                <i class="fas fa-calendar text-green-600 mr-2"></i>
-                <h4 class="font-semibold">${t('whois.dates')}</h4>
-              </div>
+            <div class="pb-4 mb-4" style="border-bottom: 1px solid var(--border-color);">
+              <h4 class="font-semibold mb-3 text-sm" style="color: var(--text-secondary);">${t('whois.dates')}</h4>
               <div class="space-y-2">
-                ${parsed['Created Date'] ? `<div class="flex justify-between"><span style="color: var(--text-secondary);">${t('whois.created')}:</span><span class="font-medium">${formatDate(parsed['Created Date'])}</span></div>` : ''}
-                ${parsed['Expiry Date'] ? `<div class="flex justify-between"><span style="color: var(--text-secondary);">${t('whois.expires')}:</span><span class="font-medium">${formatDate(parsed['Expiry Date'])}</span></div>` : ''}
-                ${parsed['Updated Date'] ? `<div class="flex justify-between"><span style="color: var(--text-secondary);">${t('whois.updated')}:</span><span class="font-medium">${formatDate(parsed['Updated Date'])}</span></div>` : ''}
+                ${parsed['Created Date'] ? `<div class="flex justify-between"><span style="color: var(--text-secondary); font-size: 0.875rem;">${t('whois.created')}</span><span class="font-medium">${formatDate(parsed['Created Date'])}</span></div>` : ''}
+                ${parsed['Expiry Date'] ? `<div class="flex justify-between"><span style="color: var(--text-secondary); font-size: 0.875rem;">${t('whois.expires')}</span><span class="font-medium">${formatDate(parsed['Expiry Date'])}</span></div>` : ''}
+                ${parsed['Updated Date'] ? `<div class="flex justify-between"><span style="color: var(--text-secondary); font-size: 0.875rem;">${t('whois.updated')}</span><span class="font-medium">${formatDate(parsed['Updated Date'])}</span></div>` : ''}
               </div>
             </div>
           `;
@@ -573,13 +589,10 @@ function showDomainDetails(result) {
         // Name Servers Card
         if (parsed['Name Server'] && Array.isArray(parsed['Name Server']) && parsed['Name Server'].length > 0) {
           cardsHtml += `
-            <div class="p-4 rounded-lg" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);">
-              <div class="flex items-center mb-3">
-                <i class="fas fa-server text-purple-600 mr-2"></i>
-                <h4 class="font-semibold">${t('whois.nameservers')}</h4>
-              </div>
+            <div class="pb-4 mb-4" style="border-bottom: 1px solid var(--border-color);">
+              <h4 class="font-semibold mb-3 text-sm" style="color: var(--text-secondary);">${t('whois.nameservers')}</h4>
               <div class="space-y-1">
-                ${parsed['Name Server'].map(ns => `<div class="font-mono text-sm px-2 py-1 rounded" style="background-color: var(--bg-primary);">${ns}</div>`).join('')}
+                ${parsed['Name Server'].map(ns => `<div class="font-mono text-sm">${ns}</div>`).join('')}
               </div>
             </div>
           `;
@@ -588,15 +601,12 @@ function showDomainDetails(result) {
         // Domain Status Card
         if (parsed['Domain Status'] && Array.isArray(parsed['Domain Status']) && parsed['Domain Status'].length > 0) {
           cardsHtml += `
-            <div class="p-4 rounded-lg" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);">
-              <div class="flex items-center mb-3">
-                <i class="fas fa-shield-alt text-orange-600 mr-2"></i>
-                <h4 class="font-semibold">${t('whois.status')}</h4>
-              </div>
+            <div class="pb-4 mb-4" style="border-bottom: 1px solid var(--border-color);">
+              <h4 class="font-semibold mb-3 text-sm" style="color: var(--text-secondary);">${t('whois.status')}</h4>
               <div class="space-y-1">
                 ${parsed['Domain Status'].map(status => {
                   const statusText = status.split(' ')[0];
-                  return `<div class="text-sm px-2 py-1 rounded" style="background-color: var(--bg-primary);"><span class="font-mono">${statusText}</span></div>`;
+                  return `<div class="text-sm font-mono">${statusText}</div>`;
                 }).join('')}
               </div>
             </div>
@@ -606,21 +616,18 @@ function showDomainDetails(result) {
         // Contact Info Card
         if (parsed['Registrar Abuse Contact Email'] || parsed['Registrar Abuse Contact Phone']) {
           cardsHtml += `
-            <div class="p-4 rounded-lg" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);">
-              <div class="flex items-center mb-3">
-                <i class="fas fa-envelope text-red-600 mr-2"></i>
-                <h4 class="font-semibold">${t('whois.contact')}</h4>
-              </div>
+            <div class="pb-4">
+              <h4 class="font-semibold mb-3 text-sm" style="color: var(--text-secondary);">${t('whois.contact')}</h4>
               <div class="space-y-2">
-                ${parsed['Registrar Abuse Contact Email'] ? `<div class="flex items-center"><i class="fas fa-envelope text-xs mr-2" style="color: var(--text-secondary);"></i><a href="mailto:${parsed['Registrar Abuse Contact Email']}" class="text-blue-600 hover:underline text-sm">${parsed['Registrar Abuse Contact Email']}</a></div>` : ''}
-                ${parsed['Registrar Abuse Contact Phone'] ? `<div class="flex items-center"><i class="fas fa-phone text-xs mr-2" style="color: var(--text-secondary);"></i><span class="text-sm">${parsed['Registrar Abuse Contact Phone']}</span></div>` : ''}
+                ${parsed['Registrar Abuse Contact Email'] ? `<div class="flex items-center gap-2"><i class="fas fa-envelope text-xs" style="color: var(--text-secondary);"></i><a href="mailto:${parsed['Registrar Abuse Contact Email']}" class="text-blue-600 hover:underline text-sm">${parsed['Registrar Abuse Contact Email']}</a></div>` : ''}
+                ${parsed['Registrar Abuse Contact Phone'] ? `<div class="flex items-center gap-2"><i class="fas fa-phone text-xs" style="color: var(--text-secondary);"></i><span class="text-sm">${parsed['Registrar Abuse Contact Phone']}</span></div>` : ''}
               </div>
             </div>
           `;
         }
         
         content.innerHTML = `
-          <div class="grid grid-cols-1 gap-4">
+          <div class="space-y-0">
             ${cardsHtml}
           </div>
         `;
