@@ -148,22 +148,96 @@ export async function domainrStatus(domains: string[], apiKey: string): Promise<
 }
 
 /**
- * Convert Domainr summary to our status format
- * Domainr summaries: available, inactive, active, unknown, undelegated, parked, etc.
+ * Convert Domainr status to our status format
+ * Domainr response format:
+ * {
+ *   domain: "example.com",
+ *   zone: "com",
+ *   status: "undelegated inactive" or "active" or "unknown",  // space-separated tokens
+ *   summary: "inactive" or "active" or "unknown"              // human-readable summary
+ * }
+ * 
+ * NOTE: When Domainr API returns "unknown" status, we use DNS fallback check
  */
-export function convertDomainrStatus(summary: string): 'available' | 'taken' | 'unknown' {
-  const lowerSummary = summary.toLowerCase();
+export function convertDomainrStatus(domainStatus: any): 'available' | 'taken' | 'unknown' {
+  if (!domainStatus) {
+    return 'unknown';
+  }
   
-  // Available states
-  if (lowerSummary === 'available' || lowerSummary === 'inactive' || lowerSummary === 'undelegated') {
+  // Parse status tokens (space-separated string)
+  const statusTokens = (domainStatus.status || '').toLowerCase().split(/\s+/).filter(Boolean);
+  const summary = (domainStatus.summary || '').toLowerCase();
+  
+  // Check summary first (most reliable indicator)
+  // Available/Inactive states
+  if (summary === 'inactive' || summary === 'available' || summary === 'undelegated') {
     return 'available';
   }
   
-  // Taken states
-  if (lowerSummary === 'active' || lowerSummary === 'parked' || lowerSummary === 'claimed') {
+  // Active/Registered states
+  if (summary === 'active' || summary === 'parked' || summary === 'claimed' || 
+      summary === 'registered' || summary === 'reserved') {
     return 'taken';
   }
   
-  // Unknown/uncertain states
+  // If summary is "unknown", check status tokens as fallback
+  if (summary === 'unknown' || summary === '') {
+    // Available indicators in status tokens
+    if (statusTokens.includes('undelegated') || 
+        statusTokens.includes('inactive') || 
+        statusTokens.includes('available')) {
+      return 'available';
+    }
+    
+    // Taken indicators in status tokens
+    if (statusTokens.includes('active') || 
+        statusTokens.includes('parked') || 
+        statusTokens.includes('premium') ||
+        statusTokens.includes('registered') ||
+        statusTokens.includes('reserved')) {
+      return 'taken';
+    }
+    
+    // If status is just "unknown", we truly don't know - use DNS fallback
+    if (statusTokens.includes('unknown') || statusTokens.length === 0) {
+      return 'unknown';
+    }
+  }
+  
+  // Default to unknown - will trigger DNS fallback
   return 'unknown';
+}
+
+/**
+ * Simple DNS-based availability check (fallback when Domainr returns unknown)
+ */
+export async function checkDomainAvailabilityDNS(domain: string): Promise<'available' | 'taken' | 'unknown'> {
+  try {
+    // Use DNS over HTTPS (Cloudflare DNS)
+    const response = await fetch(`https://cloudflare-dns.com/dns-query?name=${domain}&type=A`, {
+      headers: {
+        'Accept': 'application/dns-json'
+      }
+    });
+    
+    if (!response.ok) {
+      return 'unknown';
+    }
+    
+    const data = await response.json() as any;
+    
+    // If status is NXDOMAIN (3), domain doesn't exist (potentially available)
+    if (data.Status === 3) {
+      return 'available';
+    } 
+    // If we get answers, domain exists (taken)
+    else if (data.Answer && data.Answer.length > 0) {
+      return 'taken';
+    }
+    
+    return 'unknown';
+  } catch (error) {
+    console.error('DNS check error for', domain, ':', error);
+    return 'unknown';
+  }
 }

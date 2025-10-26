@@ -8,7 +8,8 @@ import {
   isCacheExpired,
   domainrSearch,
   domainrStatus,
-  convertDomainrStatus
+  convertDomainrStatus,
+  checkDomainAvailabilityDNS
 } from './utils'
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -87,7 +88,12 @@ app.post('/api/search', async (c) => {
       }
 
       // Convert Domainr status to our format
-      const status = convertDomainrStatus(domainStatus.summary)
+      let status = convertDomainrStatus(domainStatus)
+      
+      // If Domainr returns unknown, fallback to DNS check
+      if (status === 'unknown') {
+        status = await checkDomainAvailabilityDNS(domain);
+      }
 
       // Update cache
       await db.prepare(`
