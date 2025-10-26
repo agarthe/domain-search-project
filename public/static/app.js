@@ -9,6 +9,81 @@ let currentCurrency = localStorage.getItem('currency') || (currentLang === 'ja' 
 let searchTimeout = null;
 let lastSearchResults = null;
 
+// ============================================
+// Tooltip Management
+// ============================================
+function createTooltip() {
+  let tooltip = document.getElementById('customTooltip');
+  if (!tooltip) {
+    tooltip = document.createElement('div');
+    tooltip.id = 'customTooltip';
+    tooltip.style.cssText = `
+      position: fixed;
+      background-color: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      line-height: 1.5;
+      z-index: 10000;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      max-width: 280px;
+      white-space: pre-line;
+    `;
+    document.body.appendChild(tooltip);
+  }
+  return tooltip;
+}
+
+function showTooltip(event, title, detail) {
+  const tooltip = createTooltip();
+  tooltip.innerHTML = `<strong>${title}</strong><br>${detail}`;
+  tooltip.style.opacity = '1';
+  
+  const updatePosition = (e) => {
+    const x = e.clientX;
+    const y = e.clientY;
+    const tooltipRect = tooltip.getBoundingClientRect();
+    
+    // Position tooltip to the right and below cursor
+    let left = x + 10;
+    let top = y + 10;
+    
+    // Adjust if tooltip goes off screen
+    if (left + tooltipRect.width > window.innerWidth) {
+      left = x - tooltipRect.width - 10;
+    }
+    if (top + tooltipRect.height > window.innerHeight) {
+      top = y - tooltipRect.height - 10;
+    }
+    
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+  };
+  
+  updatePosition(event);
+  
+  // Update position on mouse move
+  const target = event.currentTarget;
+  const moveHandler = (e) => updatePosition(e);
+  target.addEventListener('mousemove', moveHandler);
+  
+  // Clean up on mouse leave
+  target.addEventListener('mouseleave', () => {
+    tooltip.style.opacity = '0';
+    target.removeEventListener('mousemove', moveHandler);
+  }, { once: true });
+}
+
+function hideTooltip() {
+  const tooltip = document.getElementById('customTooltip');
+  if (tooltip) {
+    tooltip.style.opacity = '0';
+  }
+}
+
 // Exchange rate (USD to JPY, fetched from API)
 let USD_TO_JPY = 150; // Default fallback
 
@@ -57,6 +132,16 @@ const translations = {
     'whois.loading': 'Loading WHOIS data...',
     'modal.registrars': 'Available Registrars',
     'modal.cheapest': 'Cheapest',
+    'registrar.header': 'Registrar',
+    'registrar.registration': 'Registration',
+    'registrar.renewal': 'Renewal',
+    'registrar.transfer': 'Transfer',
+    'tooltip.registration': 'First-year cost',
+    'tooltip.registration.detail': 'Cost for new domain registration.',
+    'tooltip.renewal': 'Cost from second year',
+    'tooltip.renewal.detail': 'Fee to extend your domain\'s ownership period.',
+    'tooltip.transfer': 'Fee for moving your domain',
+    'tooltip.transfer.detail': 'Includes a free 1-year renewal.',
     'error.search': 'Failed to search domains. Please try again.',
     'error.whois': 'Failed to load WHOIS data.'
   },
@@ -82,6 +167,16 @@ const translations = {
     'whois.loading': 'WHOISデータを読み込み中...',
     'modal.registrars': '利用可能なレジストラ',
     'modal.cheapest': '最安値',
+    'registrar.header': 'レジストラ',
+    'registrar.registration': '登録料金',
+    'registrar.renewal': '更新料金',
+    'registrar.transfer': '移管料金',
+    'tooltip.registration': '初年度の取得料金',
+    'tooltip.registration.detail': 'ドメインを新規で登録する際の料金です。',
+    'tooltip.renewal': '2年目以降の継続料金',
+    'tooltip.renewal.detail': 'ドメインの保有期間を延長する際の料金です。',
+    'tooltip.transfer': '他社からの転入料金',
+    'tooltip.transfer.detail': 'この料金には、自動的に1年分の更新が含まれます。',
     'error.search': 'ドメイン検索に失敗しました。もう一度お試しください。',
     'error.whois': 'WHOISデータの読み込みに失敗しました。'
   }
@@ -273,28 +368,30 @@ function showDomainDetails(result) {
     function renderRegistrars() {
       content.innerHTML = `
         <div class="space-y-4">
-          <div>
-            <h4 class="font-semibold mb-3 text-lg">${t('modal.registrars')}</h4>
-            <p class="text-sm mb-4" style="color: var(--text-secondary);">
-              ${result.registrars.length} registrar(s) available
-            </p>
-          </div>
-          
           <!-- Header with sort buttons -->
           <div class="flex items-center justify-between px-3 py-2" style="border-bottom: 2px solid var(--border-color);">
-            <div class="font-semibold" style="flex: 1;">Registrar</div>
+            <div class="font-semibold" style="flex: 1;">${t('registrar.header')}</div>
             <div class="flex" style="gap: 2rem;">
               <button class="sort-btn text-sm font-semibold ${currentSortBy === 'price' ? 'text-blue-600' : ''}" 
-                      data-sort="price" style="min-width: 80px; text-align: right;">
-                Registration <i class="fas fa-sort ml-1"></i>
+                      data-sort="price" 
+                      data-tooltip-title="${t('tooltip.registration')}"
+                      data-tooltip-detail="${t('tooltip.registration.detail')}"
+                      style="min-width: 80px; text-align: right; cursor: help;">
+                ${t('registrar.registration')} <i class="fas fa-sort ml-1"></i>
               </button>
               <button class="sort-btn text-sm font-semibold ${currentSortBy === 'renewal_price' ? 'text-blue-600' : ''}" 
-                      data-sort="renewal_price" style="min-width: 80px; text-align: right;">
-                Renewal <i class="fas fa-sort ml-1"></i>
+                      data-sort="renewal_price"
+                      data-tooltip-title="${t('tooltip.renewal')}"
+                      data-tooltip-detail="${t('tooltip.renewal.detail')}"
+                      style="min-width: 80px; text-align: right; cursor: help;">
+                ${t('registrar.renewal')} <i class="fas fa-sort ml-1"></i>
               </button>
               <button class="sort-btn text-sm font-semibold ${currentSortBy === 'transfer_price' ? 'text-blue-600' : ''}" 
-                      data-sort="transfer_price" style="min-width: 80px; text-align: right;">
-                Transfer <i class="fas fa-sort ml-1"></i>
+                      data-sort="transfer_price"
+                      data-tooltip-title="${t('tooltip.transfer')}"
+                      data-tooltip-detail="${t('tooltip.transfer.detail')}"
+                      style="min-width: 80px; text-align: right; cursor: help;">
+                ${t('registrar.transfer')} <i class="fas fa-sort ml-1"></i>
               </button>
             </div>
           </div>
@@ -337,6 +434,7 @@ function showDomainDetails(result) {
       
       // Add sort event listeners
       content.querySelectorAll('.sort-btn').forEach(btn => {
+        // Click handler for sorting
         btn.addEventListener('click', (e) => {
           e.preventDefault();
           const sortBy = btn.dataset.sort;
@@ -359,6 +457,19 @@ function showDomainDetails(result) {
           });
           
           renderRegistrars();
+        });
+        
+        // Tooltip handlers
+        btn.addEventListener('mouseenter', (e) => {
+          const title = btn.dataset.tooltipTitle;
+          const detail = btn.dataset.tooltipDetail;
+          if (title && detail) {
+            showTooltip(e, title, detail);
+          }
+        });
+        
+        btn.addEventListener('mouseleave', () => {
+          hideTooltip();
         });
       });
     }
