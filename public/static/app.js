@@ -9,8 +9,27 @@ let currentCurrency = localStorage.getItem('currency') || (currentLang === 'ja' 
 let searchTimeout = null;
 let lastSearchResults = null;
 
-// Exchange rate (USD to JPY, can be updated manually)
-const USD_TO_JPY = 150;
+// Exchange rate (USD to JPY, fetched from API)
+let USD_TO_JPY = 150; // Default fallback
+
+// Fetch exchange rate on page load
+async function fetchExchangeRate() {
+  try {
+    const response = await axios.get('/api/exchange-rate');
+    if (response.data && response.data.rate) {
+      USD_TO_JPY = response.data.rate;
+      console.log('Exchange rate updated:', USD_TO_JPY, 'JPY per USD');
+      
+      // Re-render results if they exist
+      if (lastSearchResults) {
+        displayResults(lastSearchResults);
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch exchange rate:', error);
+    // Keep using default rate
+  }
+}
 
 // ============================================
 // i18n Translations
@@ -53,8 +72,8 @@ const translations = {
     'results.found': '見つかった',
     'results.domains': 'ドメイン',
     'empty.message': '完璧なドメイン名を検索してください',
-    'domain.available': '利用可能',
-    'domain.taken': '取得済み',
+    'domain.available': '取得できます',
+    'domain.taken': '取得できません',
     'domain.unknown': '不明',
     'domain.register': '登録先:',
     'domain.whois': 'WHOIS表示',
@@ -118,15 +137,31 @@ function switchCurrency(currency) {
   }
 }
 
-function formatPrice(priceUSD) {
-  if (!priceUSD) return 'N/A';
+function formatPrice(price, sourceCurrency = 'USD') {
+  if (!price) return 'N/A';
   
-  if (currentCurrency === 'JPY') {
-    const priceJPY = Math.round(priceUSD * USD_TO_JPY);
+  // If display currency matches source currency, no conversion needed
+  if (currentCurrency === sourceCurrency) {
+    if (currentCurrency === 'JPY') {
+      return `${Math.round(price).toLocaleString()}円`;
+    } else {
+      return `$${price}`;
+    }
+  }
+  
+  // Convert if currencies don't match
+  if (currentCurrency === 'JPY' && sourceCurrency === 'USD') {
+    // USD to JPY
+    const priceJPY = Math.round(price * USD_TO_JPY);
     return `${priceJPY.toLocaleString()}円`;
-  } else {
+  } else if (currentCurrency === 'USD' && sourceCurrency === 'JPY') {
+    // JPY to USD
+    const priceUSD = (price / USD_TO_JPY).toFixed(2);
     return `$${priceUSD}`;
   }
+  
+  // Fallback
+  return currentCurrency === 'JPY' ? `${Math.round(price).toLocaleString()}円` : `$${price}`;
 }
 
 // ============================================
@@ -231,42 +266,119 @@ function showDomainDetails(result) {
   modal.classList.remove('hidden');
 
   if (result.status === 'available' && result.registrars) {
-    // Show registrars for available domains
-    content.innerHTML = `
-      <div class="space-y-4">
-        <div>
-          <h4 class="font-semibold mb-3 text-lg">${t('modal.registrars')}</h4>
-          <p class="text-sm mb-4" style="color: var(--text-secondary);">
-            ${result.registrars.length} registrar(s) available • Sorted by price
-          </p>
-        </div>
-        <div class="space-y-3">
-          ${result.registrars.map((reg, idx) => `
-            <a href="${reg.register_url}" 
-               target="_blank" 
-               rel="noopener noreferrer"
-               class="registrar-card flex items-center justify-between p-4 border rounded-lg transition"
-               style="border-color: var(--border-color);"
-               onmouseenter="this.style.backgroundColor=document.documentElement.classList.contains('dark')?'#1f2937':'#fafafa'"
-               onmouseleave="this.style.backgroundColor='transparent'">
-              <div class="flex items-center space-x-3">
-                ${reg.logo_url ? `<img src="${reg.logo_url}" alt="${reg.name}" class="w-8 h-8">` : ''}
-                <div>
-                  <div class="font-semibold">${reg.name}</div>
-                  ${reg.renewal_price ? `<div class="text-xs" style="color: var(--text-secondary);">Renewal: ${formatPrice(reg.renewal_price)}</div>` : ''}
+    // Store registrars data for sorting
+    let sortedRegistrars = [...result.registrars];
+    let currentSortBy = 'price';
+    
+    function renderRegistrars() {
+      content.innerHTML = `
+        <div class="space-y-4">
+          <div>
+            <h4 class="font-semibold mb-3 text-lg">${t('modal.registrars')}</h4>
+            <p class="text-sm mb-4" style="color: var(--text-secondary);">
+              ${result.registrars.length} registrar(s) available
+            </p>
+          </div>
+          
+          <!-- Header with sort buttons -->
+          <div class="flex items-center justify-between px-3 py-2" style="border-bottom: 2px solid var(--border-color);">
+            <div class="font-semibold" style="flex: 1;">Registrar</div>
+            <div class="flex" style="gap: 2rem;">
+              <button class="sort-btn text-sm font-semibold ${currentSortBy === 'price' ? 'text-blue-600' : ''}" 
+                      data-sort="price" style="min-width: 80px; text-align: right;">
+                Registration <i class="fas fa-sort ml-1"></i>
+              </button>
+              <button class="sort-btn text-sm font-semibold ${currentSortBy === 'renewal_price' ? 'text-blue-600' : ''}" 
+                      data-sort="renewal_price" style="min-width: 80px; text-align: right;">
+                Renewal <i class="fas fa-sort ml-1"></i>
+              </button>
+              <button class="sort-btn text-sm font-semibold ${currentSortBy === 'transfer_price' ? 'text-blue-600' : ''}" 
+                      data-sort="transfer_price" style="min-width: 80px; text-align: right;">
+                Transfer <i class="fas fa-sort ml-1"></i>
+              </button>
+            </div>
+          </div>
+          
+          <!-- Registrar list -->
+          <div class="divide-y" style="border-color: var(--border-color);">
+            ${sortedRegistrars.map((reg, idx) => `
+              <a href="${reg.register_url}" 
+                 target="_blank" 
+                 rel="noopener noreferrer"
+                 class="registrar-item flex items-center justify-between px-3 py-3 transition"
+                 onmouseenter="this.style.backgroundColor=document.documentElement.classList.contains('dark')?'#1f2937':'#fafafa'"
+                 onmouseleave="this.style.backgroundColor='transparent'">
+                <div class="flex items-center" style="gap: 0.75rem; flex: 1;">
+                  ${reg.logo_url ? `<img src="${reg.logo_url}" alt="${reg.name}" class="w-6 h-6">` : '<i class="fas fa-globe text-gray-400"></i>'}
+                  <div class="font-medium">${reg.name}</div>
                 </div>
-              </div>
-              <div class="text-right">
-                <div class="text-lg font-bold text-blue-600">
-                  ${formatPrice(reg.price)}
+                <div class="flex" style="gap: 2rem;">
+                  <div class="text-right" style="min-width: 80px;">
+                    <div class="font-semibold ${idx === 0 && currentSortBy === 'price' ? 'text-green-600' : ''}">
+                      ${formatPrice(reg.price, reg.currency)}
+                    </div>
+                  </div>
+                  <div class="text-right" style="min-width: 80px;">
+                    <div class="${idx === 0 && currentSortBy === 'renewal_price' ? 'text-green-600 font-semibold' : ''}" style="color: ${!reg.renewal_price ? 'var(--text-secondary)' : ''}">
+                      ${reg.renewal_price ? formatPrice(reg.renewal_price, reg.currency) : 'N/A'}
+                    </div>
+                  </div>
+                  <div class="text-right" style="min-width: 80px;">
+                    <div class="${idx === 0 && currentSortBy === 'transfer_price' ? 'text-green-600 font-semibold' : ''}" style="color: ${!reg.transfer_price ? 'var(--text-secondary)' : ''}">
+                      ${reg.transfer_price ? formatPrice(reg.transfer_price, reg.currency) : 'N/A'}
+                    </div>
+                  </div>
                 </div>
-                ${idx === 0 && reg.price ? `<div class="text-xs text-green-600">${t('modal.cheapest')}</div>` : ''}
-              </div>
-            </a>
-          `).join('')}
+              </a>
+            `).join('')}
+          </div>
         </div>
-      </div>
-    `;
+      `;
+      
+      // Add sort event listeners
+      content.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const sortBy = btn.dataset.sort;
+          currentSortBy = sortBy;
+          
+          // Sort registrars (normalize to USD for comparison)
+          sortedRegistrars.sort((a, b) => {
+            let aPrice = a[sortBy] || Infinity;
+            let bPrice = b[sortBy] || Infinity;
+            
+            // Convert to USD for fair comparison
+            if (a.currency === 'JPY' && aPrice !== Infinity) {
+              aPrice = aPrice / USD_TO_JPY;
+            }
+            if (b.currency === 'JPY' && bPrice !== Infinity) {
+              bPrice = bPrice / USD_TO_JPY;
+            }
+            
+            return aPrice - bPrice;
+          });
+          
+          renderRegistrars();
+        });
+      });
+    }
+    
+    // Initial sort by registration price (normalize to USD for comparison)
+    sortedRegistrars.sort((a, b) => {
+      let aPrice = a.price || Infinity;
+      let bPrice = b.price || Infinity;
+      
+      if (a.currency === 'JPY' && aPrice !== Infinity) {
+        aPrice = aPrice / USD_TO_JPY;
+      }
+      if (b.currency === 'JPY' && bPrice !== Infinity) {
+        bPrice = bPrice / USD_TO_JPY;
+      }
+      
+      return aPrice - bPrice;
+    });
+    renderRegistrars();
+    
   } else if (result.status === 'taken') {
     // Show WHOIS for taken domains
     content.innerHTML = '<div class="loader mx-auto"></div><p class="text-center mt-4">' + t('whois.loading') + '</p>';
@@ -308,6 +420,9 @@ async function fetchWhoisData(domain) {
 // Event Listeners
 // ============================================
 document.addEventListener('DOMContentLoaded', () => {
+  // Fetch current exchange rate
+  fetchExchangeRate();
+  
   // Apply saved theme
   applyTheme(currentTheme);
   

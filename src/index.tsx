@@ -2,13 +2,13 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import type { Bindings, DomainResult, SearchResponse, RegistrarWithPrice, ApiKey } from './types'
 import { 
-  generateDomainVariations, 
   extractTLD, 
   normalizeDomain, 
-  checkDomainAvailabilityDNS,
   fetchWhoisData,
   isCacheExpired,
-  isValidDomain
+  domainrSearch,
+  domainrStatus,
+  convertDomainrStatus
 } from './utils'
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -22,7 +22,7 @@ app.use('*', cors())
 
 /**
  * POST /api/search
- * Search for domain availability and suggestions
+ * Search for domain availability using Domainr API
  */
 app.post('/api/search', async (c) => {
   try {
@@ -33,54 +33,70 @@ app.post('/api/search', async (c) => {
     }
 
     const normalized = normalizeDomain(query)
-    const domains = isValidDomain(normalized) 
-      ? [normalized, ...generateDomainVariations(normalized.split('.')[0])]
-      : generateDomainVariations(normalized)
-
-    const results: DomainResult[] = []
     const db = c.env.DB
+
+    // Get Domainr API key
+    const apiKeyRecord = await db.prepare(`
+      SELECT api_key FROM api_keys 
+      WHERE service_name = 'domainr_api' AND is_active = 1
+      LIMIT 1
+    `).first() as ApiKey | null
+
+    if (!apiKeyRecord || !apiKeyRecord.api_key) {
+      return c.json({ 
+        error: 'Domainr API key not configured',
+        message: 'Please configure Domainr API key in admin panel'
+      }, 503)
+    }
+
+    // 1. Search domains using Domainr API
+    const searchResults = await domainrSearch(normalized, apiKeyRecord.api_key)
+    
+    if (searchResults.length === 0) {
+      return c.json({
+        query: normalized,
+        results: [],
+        timestamp: new Date().toISOString()
+      })
+    }
+
+    // Extract domain names from search results
+    const domains = searchResults.map((r: any) => r.domain).slice(0, 50) // Limit to 50
+
+    // 2. Check status using Domainr API (batch check)
+    const statusMap = await domainrStatus(domains, apiKeyRecord.api_key)
 
     // Get all active registrars with pricing
     const registrars = await db.prepare(`
-      SELECT r.*, rp.tld, rp.price, rp.renewal_price, rp.currency
+      SELECT r.*, rp.tld, rp.price, rp.renewal_price, rp.transfer_price, rp.currency
       FROM registrars r
       LEFT JOIN registrar_pricing rp ON r.id = rp.registrar_id
       WHERE r.is_active = 1
       ORDER BY r.display_order ASC
     `).all()
 
-    // Check each domain
-    for (const domain of domains.slice(0, 30)) { // Limit to 30 domains
+    // 3. Build results
+    const results: DomainResult[] = []
+
+    for (const domain of domains) {
       const tld = extractTLD(domain)
+      const domainStatus = statusMap.get(domain)
       
-      // Check cache first
-      const cached = await db.prepare(`
-        SELECT * FROM domain_cache 
-        WHERE domain = ? 
-        ORDER BY last_checked DESC 
-        LIMIT 1
-      `).bind(domain).first()
-
-      let status: 'available' | 'taken' | 'unknown' = 'unknown'
-      let whoisData = null
-
-      if (cached && !isCacheExpired(cached.last_checked as string)) {
-        // Use cached data
-        status = cached.is_available === 1 ? 'available' : cached.is_available === 0 ? 'taken' : 'unknown'
-        whoisData = cached.whois_data ? JSON.parse(cached.whois_data as string) : null
-      } else {
-        // Check availability
-        status = await checkDomainAvailabilityDNS(domain)
-        
-        // Update cache
-        await db.prepare(`
-          INSERT OR REPLACE INTO domain_cache (domain, is_available, last_checked)
-          VALUES (?, ?, datetime('now'))
-        `).bind(
-          domain,
-          status === 'available' ? 1 : status === 'taken' ? 0 : 2
-        ).run()
+      if (!domainStatus) {
+        continue // Skip if no status info
       }
+
+      // Convert Domainr status to our format
+      const status = convertDomainrStatus(domainStatus.summary)
+
+      // Update cache
+      await db.prepare(`
+        INSERT OR REPLACE INTO domain_cache (domain, is_available, last_checked)
+        VALUES (?, ?, datetime('now'))
+      `).bind(
+        domain,
+        status === 'available' ? 1 : status === 'taken' ? 0 : 2
+      ).run()
 
       // Get registrars for this TLD
       const domainRegistrars: RegistrarWithPrice[] = registrars.results
@@ -100,6 +116,7 @@ app.post('/api/search', async (c) => {
               updated_at: curr.updated_at,
               price: curr.price,
               renewal_price: curr.renewal_price,
+              transfer_price: curr.transfer_price,
               currency: curr.currency,
               register_url: curr.affiliate_link_template.replace('{domain}', domain)
             })
@@ -108,22 +125,31 @@ app.post('/api/search', async (c) => {
         }, [])
         .sort((a, b) => {
           // Sort by price (ascending) - cheapest first
-          if (a.price && b.price) return a.price - b.price;
-          if (a.price) return -1;
-          if (b.price) return 1;
-          return 0;
+          // Normalize to USD for fair comparison
+          const USD_TO_JPY = 150;
+          let aPrice = a.price || Infinity;
+          let bPrice = b.price || Infinity;
+          
+          if (a.currency === 'JPY' && aPrice !== Infinity) {
+            aPrice = aPrice / USD_TO_JPY;
+          }
+          if (b.currency === 'JPY' && bPrice !== Infinity) {
+            bPrice = bPrice / USD_TO_JPY;
+          }
+          
+          return aPrice - bPrice;
         })
         .slice(0, 10) // Show top 10 cheapest registrars
 
-      // Only add domains that have a TLD
+      // Add to results
       if (tld && tld.length > 0) {
         results.push({
           domain,
           tld,
           status,
           registrars: status === 'available' ? domainRegistrars : undefined,
-          whois: status === 'taken' ? whoisData : undefined,
-          cached: cached ? !isCacheExpired(cached.last_checked as string) : false
+          whois: status === 'taken' ? null : undefined, // WHOIS can be fetched separately
+          cached: false // Fresh from Domainr API
         })
       }
     }
@@ -179,6 +205,71 @@ app.get('/api/whois/:domain', async (c) => {
   } catch (error) {
     console.error('WHOIS error:', error)
     return c.json({ error: 'Failed to fetch WHOIS data' }, 500)
+  }
+})
+
+/**
+ * GET /api/exchange-rate
+ * Get current exchange rate (USD to JPY)
+ */
+app.get('/api/exchange-rate', async (c) => {
+  try {
+    const db = c.env.DB
+    
+    // Check if we have a recent rate (within 24 hours)
+    const cached = await db.prepare(`
+      SELECT rate, last_updated FROM exchange_rates 
+      WHERE base_currency = 'USD' AND target_currency = 'JPY'
+      ORDER BY last_updated DESC
+      LIMIT 1
+    `).first()
+    
+    const now = new Date()
+    let rate = 150 // Default fallback rate
+    
+    if (cached) {
+      const lastUpdated = new Date(cached.last_updated as string)
+      const hoursSinceUpdate = (now.getTime() - lastUpdated.getTime()) / (1000 * 60 * 60)
+      
+      // If rate is less than 24 hours old, use cached rate
+      if (hoursSinceUpdate < 24) {
+        return c.json({ 
+          rate: cached.rate, 
+          lastUpdated: cached.last_updated,
+          cached: true 
+        })
+      }
+      
+      rate = cached.rate as number
+    }
+    
+    // Fetch new rate from API
+    try {
+      const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD')
+      const data = await response.json() as any
+      
+      if (data.rates && data.rates.JPY) {
+        rate = data.rates.JPY
+        
+        // Update database
+        await db.prepare(`
+          INSERT OR REPLACE INTO exchange_rates (base_currency, target_currency, rate, last_updated)
+          VALUES ('USD', 'JPY', ?, datetime('now'))
+        `).bind(rate).run()
+      }
+    } catch (apiError) {
+      console.error('Exchange rate API error:', apiError)
+      // If API fails, use cached or default rate
+    }
+    
+    return c.json({ 
+      rate, 
+      lastUpdated: now.toISOString(),
+      cached: false 
+    })
+  } catch (error) {
+    console.error('Exchange rate error:', error)
+    return c.json({ rate: 150, error: 'Failed to fetch rate, using default' }, 500)
   }
 })
 
@@ -320,22 +411,26 @@ app.get('/api/admin/pricing', async (c) => {
 
 /**
  * POST /api/admin/pricing
- * Create pricing record
+ * Create or replace pricing record
+ * If a record with the same registrar_id, tld, and currency exists, it will be replaced
  */
 app.post('/api/admin/pricing', async (c) => {
   try {
     const db = c.env.DB
     const data = await c.req.json()
 
+    // REPLACE INTO: automatically deletes existing record with same UNIQUE constraint
+    // and inserts the new record
     const result = await db.prepare(`
-      INSERT INTO registrar_pricing (registrar_id, tld, currency, price, renewal_price)
-      VALUES (?, ?, ?, ?, ?)
+      REPLACE INTO registrar_pricing (registrar_id, tld, currency, price, renewal_price, transfer_price)
+      VALUES (?, ?, ?, ?, ?, ?)
     `).bind(
       data.registrar_id,
       data.tld,
       data.currency || 'USD',
       data.price,
-      data.renewal_price || null
+      data.renewal_price || null,
+      data.transfer_price || null
     ).run()
 
     return c.json({ id: result.meta.last_row_id, ...data })
@@ -356,7 +451,7 @@ app.put('/api/admin/pricing/:id', async (c) => {
 
     await db.prepare(`
       UPDATE registrar_pricing 
-      SET registrar_id = ?, tld = ?, currency = ?, price = ?, renewal_price = ?,
+      SET registrar_id = ?, tld = ?, currency = ?, price = ?, renewal_price = ?, transfer_price = ?,
           updated_at = datetime('now')
       WHERE id = ?
     `).bind(
@@ -365,6 +460,7 @@ app.put('/api/admin/pricing/:id', async (c) => {
       data.currency,
       data.price,
       data.renewal_price,
+      data.transfer_price,
       id
     ).run()
 
@@ -574,7 +670,7 @@ app.get('/', (c) => {
                     <div class="flex items-center flex-shrink-0" style="gap: 0.5rem;">
                         <i class="fas fa-dog text-blue-600 text-2xl"></i>
                         <div>
-                            <div class="text-xs" style="color: var(--text-secondary);">
+                            <div style="color: var(--text-secondary); font-size: 0.68rem; margin-bottom: -0.25rem;">
                                 <span data-i18n="tagline">Fetch Domain, Woof!</span>
                             </div>
                             <h1 class="text-xl font-bold">inu.name</h1>
@@ -633,7 +729,7 @@ app.get('/', (c) => {
                     <div class="flex items-center flex-shrink-0" style="visibility: hidden; gap: 0.5rem;">
                         <i class="fas fa-dog text-blue-600 text-2xl"></i>
                         <div>
-                            <div class="text-xs">
+                            <div style="font-size: 0.68rem; margin-bottom: -0.25rem;">
                                 <span>Fetch Domain, Woof!</span>
                             </div>
                             <h1 class="text-xl font-bold">inu.name</h1>
@@ -668,7 +764,7 @@ app.get('/', (c) => {
                         <div class="flex items-center space-x-2 mb-4">
                             <i class="fas fa-dog text-blue-600 text-xl"></i>
                             <div>
-                                <div class="text-xs" style="color: var(--text-secondary);">
+                                <div style="color: var(--text-secondary); font-size: 0.68rem; margin-bottom: -0.45rem;">
                                     <span data-i18n="tagline">Fetch Domain, Woof!</span>
                                 </div>
                                 <h3 class="text-lg font-bold">inu.name</h3>
@@ -725,7 +821,7 @@ app.get('/', (c) => {
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <script src="/static/app.js?v=14"></script>
+        <script src="/static/app.js?v=15"></script>
     </body>
     </html>
   `)
@@ -866,10 +962,36 @@ app.get('/admin', (c) => {
             <div id="pricingTab" class="tab-content hidden">
                 <div class="panel-card rounded-lg p-6 mb-6">
                     <h2 class="text-xl font-bold mb-4">Manage Pricing</h2>
-                    <button id="addPricingBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                        <i class="fas fa-plus mr-2"></i>Add Pricing
-                    </button>
+                    <div class="flex gap-4">
+                        <button id="addPricingBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                            <i class="fas fa-plus mr-2"></i>Add Pricing
+                        </button>
+                        <button id="bulkImportBtn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                            <i class="fas fa-file-import mr-2"></i>Bulk Import
+                        </button>
+                    </div>
                 </div>
+                
+                <!-- Bulk Import Panel -->
+                <div id="bulkImportPanel" class="panel-card rounded-lg p-6 mb-6 hidden">
+                    <h3 class="text-lg font-bold mb-4">Bulk Import Pricing Data</h3>
+                    <p class="text-sm mb-4" style="color: var(--text-secondary);">
+                        Format: <code>registrar_id,tld,currency,price,renewal_price,transfer_price</code> (one per line)<br>
+                        Example: <code>1,.com,USD,10.99,12.99,15.99</code>
+                    </p>
+                    <textarea id="bulkImportData" class="w-full h-64 p-4 rounded border font-mono text-sm" style="background-color: var(--bg-primary); border-color: var(--border-color);" placeholder="1,.com,USD,10.99,12.99,15.99
+1,.net,USD,12.99,14.99,17.99
+2,.com,USD,9.99,11.99,14.99"></textarea>
+                    <div class="flex gap-2 mt-4">
+                        <button id="importExecuteBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                            <i class="fas fa-upload mr-2"></i>Import
+                        </button>
+                        <button id="importCancelBtn" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+                
                 <div class="panel-card rounded-lg p-6">
                     <div class="overflow-x-auto">
                         <table class="w-full" id="pricingTable">
@@ -879,6 +1001,7 @@ app.get('/admin', (c) => {
                                     <th class="text-left py-3 px-4">TLD</th>
                                     <th class="text-left py-3 px-4">Price</th>
                                     <th class="text-left py-3 px-4">Renewal</th>
+                                    <th class="text-left py-3 px-4">Transfer</th>
                                     <th class="text-left py-3 px-4">Currency</th>
                                     <th class="text-left py-3 px-4">Actions</th>
                                 </tr>
@@ -893,8 +1016,24 @@ app.get('/admin', (c) => {
 
             <!-- API Keys Tab -->
             <div id="apikeysTab" class="tab-content hidden">
-                <div class="panel-card rounded-lg p-6">
+                <div class="panel-card rounded-lg p-6 mb-6">
                     <h2 class="text-xl font-bold mb-4">Manage API Keys</h2>
+                    <div class="mb-4 p-4 bg-blue-50 dark:bg-blue-900 rounded-lg">
+                        <h3 class="font-semibold mb-2 text-blue-800 dark:text-blue-200">
+                            <i class="fas fa-info-circle mr-2"></i>Domainr API (Required)
+                        </h3>
+                        <p class="text-sm mb-2" style="color: var(--text-secondary);">
+                            This application uses <strong>Domainr API</strong> for domain search and availability checking.
+                        </p>
+                        <ul class="text-sm space-y-1 ml-4" style="color: var(--text-secondary); list-style: disc;">
+                            <li>Get API key from: <a href="https://rapidapi.com/domainr/api/domainr" target="_blank" class="text-blue-600 hover:underline">RapidAPI - Domainr</a></li>
+                            <li>Service name: <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">domainr_api</code></li>
+                            <li>Set the RapidAPI key as the API Key value</li>
+                            <li>Base URL is preset to: <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">https://domainr.p.rapidapi.com/v2</code></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="panel-card rounded-lg p-6">
                     <div class="space-y-4" id="apiKeysList">
                         <!-- Will be populated by JS -->
                     </div>

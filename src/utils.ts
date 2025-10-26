@@ -1,42 +1,6 @@
 // Utility functions for domain operations
 
 /**
- * Generate domain variations based on input keyword
- */
-export function generateDomainVariations(keyword: string): string[] {
-  const normalized = keyword.toLowerCase().replace(/[^a-z0-9-]/g, '');
-  
-  // Common TLDs to check
-  const tlds = [
-    '.com', '.net', '.org', '.io', '.co', '.app', '.dev', '.ai',
-    '.tech', '.online', '.site', '.website', '.store', '.shop',
-    '.blog', '.news', '.info', '.biz', '.jp', '.co.jp', '.ne.jp'
-  ];
-  
-  const variations: string[] = [];
-  
-  // Direct domain with various TLDs
-  tlds.forEach(tld => {
-    variations.push(`${normalized}${tld}`);
-  });
-  
-  // Common prefixes/suffixes
-  const modifiers = ['get', 'try', 'my', 'the', 'app', 'hq', 'hub', 'go', 'new'];
-  
-  // Add some variations with modifiers (limit to .com, .io, .app for modifiers)
-  const popularTlds = ['.com', '.io', '.app', '.net'];
-  modifiers.slice(0, 3).forEach(mod => {
-    popularTlds.forEach(tld => {
-      variations.push(`${mod}${normalized}${tld}`);
-      variations.push(`${normalized}${mod}${tld}`);
-    });
-  });
-  
-  // Return unique domains (limit to first 50 for performance)
-  return [...new Set(variations)].slice(0, 50);
-}
-
-/**
  * Extract TLD from domain name
  */
 export function extractTLD(domain: string): string {
@@ -62,47 +26,6 @@ export function normalizeDomain(input: string): string {
     .replace(/\/$/, '')
     .split('/')[0]
     .trim();
-}
-
-/**
- * Check if domain format is valid
- */
-export function isValidDomain(domain: string): boolean {
-  const domainRegex = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
-  return domainRegex.test(domain);
-}
-
-/**
- * Simple domain availability check using DNS lookup (fallback method)
- */
-export async function checkDomainAvailabilityDNS(domain: string): Promise<'available' | 'taken' | 'unknown'> {
-  try {
-    // Use DNS over HTTPS (Cloudflare DNS)
-    const response = await fetch(`https://cloudflare-dns.com/dns-query?name=${domain}&type=A`, {
-      headers: {
-        'Accept': 'application/dns-json'
-      }
-    });
-    
-    if (!response.ok) {
-      return 'unknown';
-    }
-    
-    const data = await response.json() as any;
-    
-    // If we get answers, domain exists (taken)
-    // If status is NXDOMAIN (3), domain doesn't exist (potentially available)
-    if (data.Status === 3) {
-      return 'available';
-    } else if (data.Answer && data.Answer.length > 0) {
-      return 'taken';
-    }
-    
-    return 'unknown';
-  } catch (error) {
-    console.error('DNS check error:', error);
-    return 'unknown';
-  }
 }
 
 /**
@@ -157,4 +80,90 @@ export function isCacheExpired(lastChecked: string): boolean {
   const lastCheckedTime = new Date(lastChecked).getTime();
   const now = Date.now();
   return (now - lastCheckedTime) > CACHE_EXPIRY_MS;
+}
+
+/**
+ * Domainr API: Search for domains
+ * https://domainr.com/docs/api#search
+ */
+export async function domainrSearch(query: string, apiKey: string): Promise<any[]> {
+  try {
+    const url = `https://domainr.p.rapidapi.com/v2/search?query=${encodeURIComponent(query)}`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'X-RapidAPI-Key': apiKey,
+        'X-RapidAPI-Host': 'domainr.p.rapidapi.com'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Domainr Search API error: ${response.status}`);
+    }
+    
+    const data = await response.json() as any;
+    return data.results || [];
+  } catch (error) {
+    console.error('Domainr Search error:', error);
+    return [];
+  }
+}
+
+/**
+ * Domainr API: Check domain status
+ * https://domainr.com/docs/api#status
+ */
+export async function domainrStatus(domains: string[], apiKey: string): Promise<Map<string, any>> {
+  try {
+    // Join domains with comma for batch check
+    const domainList = domains.join(',');
+    const url = `https://domainr.p.rapidapi.com/v2/status?domain=${encodeURIComponent(domainList)}`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'X-RapidAPI-Key': apiKey,
+        'X-RapidAPI-Host': 'domainr.p.rapidapi.com'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Domainr Status API error: ${response.status}`);
+    }
+    
+    const data = await response.json() as any;
+    
+    // Create map of domain -> status
+    const statusMap = new Map<string, any>();
+    if (data.status) {
+      data.status.forEach((item: any) => {
+        statusMap.set(item.domain, item);
+      });
+    }
+    
+    return statusMap;
+  } catch (error) {
+    console.error('Domainr Status error:', error);
+    return new Map();
+  }
+}
+
+/**
+ * Convert Domainr summary to our status format
+ * Domainr summaries: available, inactive, active, unknown, undelegated, parked, etc.
+ */
+export function convertDomainrStatus(summary: string): 'available' | 'taken' | 'unknown' {
+  const lowerSummary = summary.toLowerCase();
+  
+  // Available states
+  if (lowerSummary === 'available' || lowerSummary === 'inactive' || lowerSummary === 'undelegated') {
+    return 'available';
+  }
+  
+  // Taken states
+  if (lowerSummary === 'active' || lowerSummary === 'parked' || lowerSummary === 'claimed') {
+    return 'taken';
+  }
+  
+  // Unknown/uncertain states
+  return 'unknown';
 }

@@ -208,6 +208,7 @@ function renderPricing() {
       <td class="py-3 px-4">${price.tld}</td>
       <td class="py-3 px-4">${price.price}</td>
       <td class="py-3 px-4">${price.renewal_price || 'N/A'}</td>
+      <td class="py-3 px-4">${price.transfer_price || 'N/A'}</td>
       <td class="py-3 px-4">${price.currency}</td>
       <td class="py-3 px-4">
         <button onclick="editPricing(${price.id})" class="text-blue-600 hover:underline mr-2">
@@ -248,6 +249,7 @@ function editPricing(id) {
   if (isNaN(price)) return;
 
   const renewalPrice = prompt('Renewal Price (optional):', pricing.renewal_price || '');
+  const transferPrice = prompt('Transfer Price (optional):', pricing.transfer_price || '');
   const currency = prompt('Currency:', pricing.currency);
 
   updatePricing(id, {
@@ -255,6 +257,7 @@ function editPricing(id) {
     tld,
     price,
     renewal_price: renewalPrice ? parseFloat(renewalPrice) : null,
+    transfer_price: transferPrice ? parseFloat(transferPrice) : null,
     currency: currency || 'USD'
   });
 }
@@ -282,6 +285,7 @@ function addPricing() {
   if (isNaN(price)) return;
 
   const renewalPrice = prompt('Renewal Price (optional):');
+  const transferPrice = prompt('Transfer Price (optional):');
   const currency = prompt('Currency:', 'USD');
 
   createPricing({
@@ -289,6 +293,7 @@ function addPricing() {
     tld,
     price,
     renewal_price: renewalPrice ? parseFloat(renewalPrice) : null,
+    transfer_price: transferPrice ? parseFloat(transferPrice) : null,
     currency: currency || 'USD'
   });
 }
@@ -302,6 +307,84 @@ async function createPricing(data) {
     console.error('Failed to create pricing:', error);
     alert('Failed to create pricing');
   }
+}
+
+// ============================================
+// Bulk Import Management
+// ============================================
+function showBulkImportPanel() {
+  document.getElementById('bulkImportPanel').classList.remove('hidden');
+  document.getElementById('addPricingBtn').disabled = true;
+  document.getElementById('bulkImportBtn').disabled = true;
+}
+
+function hideBulkImportPanel() {
+  document.getElementById('bulkImportPanel').classList.add('hidden');
+  document.getElementById('bulkImportData').value = '';
+  document.getElementById('addPricingBtn').disabled = false;
+  document.getElementById('bulkImportBtn').disabled = false;
+}
+
+async function executeBulkImport() {
+  const data = document.getElementById('bulkImportData').value.trim();
+  if (!data) {
+    alert('Please enter pricing data');
+    return;
+  }
+
+  const lines = data.split('\n').filter(line => line.trim());
+  const pricingItems = [];
+  const errors = [];
+
+  lines.forEach((line, index) => {
+    const parts = line.split(',').map(p => p.trim());
+    if (parts.length < 4) {
+      errors.push(`Line ${index + 1}: Invalid format (need at least 4 fields)`);
+      return;
+    }
+
+    const [registrarId, tld, currency, price, renewalPrice, transferPrice] = parts;
+    
+    if (!registrarId || !tld || !currency || !price) {
+      errors.push(`Line ${index + 1}: Missing required fields`);
+      return;
+    }
+
+    pricingItems.push({
+      registrar_id: parseInt(registrarId),
+      tld,
+      currency,
+      price: parseFloat(price),
+      renewal_price: renewalPrice ? parseFloat(renewalPrice) : null,
+      transfer_price: transferPrice ? parseFloat(transferPrice) : null
+    });
+  });
+
+  if (errors.length > 0) {
+    alert('Errors found:\n' + errors.join('\n'));
+    return;
+  }
+
+  if (!confirm(`Import ${pricingItems.length} pricing records?`)) {
+    return;
+  }
+
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const item of pricingItems) {
+    try {
+      await axios.post('/api/admin/pricing', item);
+      successCount++;
+    } catch (error) {
+      console.error('Failed to import item:', item, error);
+      failCount++;
+    }
+  }
+
+  alert(`Import completed:\nSuccess: ${successCount}\nFailed: ${failCount}`);
+  hideBulkImportPanel();
+  loadPricing();
 }
 
 // ============================================

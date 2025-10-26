@@ -23,6 +23,7 @@ export interface RegistrarPricing {
   currency: string;
   price: number;
   renewal_price: number | null;
+  transfer_price: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -59,6 +60,7 @@ export interface DomainResult {
 export interface RegistrarWithPrice extends Registrar {
   price?: number;
   renewal_price?: number;
+  transfer_price?: number;
   currency?: string;
   register_url?: string;
 }
@@ -76,4 +78,20 @@ export interface WhoisResponse {
   created_date?: string;
   expiry_date?: string;
   status?: string[];
+}
+
+export interface ExchangeRate {
+  id: number;
+  base_currency: string;
+  target_currency: string;
+  rate: number;
+  last_updated: string;
+  created_at: string;
+}
+
+export interface ExchangeRateResponse {
+  rate: number;
+  lastUpdated: string;
+  cached: boolean;
+  error?: string;
 }
