@@ -7,8 +7,8 @@ A modern, Domainr.com-inspired domain search and availability checker built with
 **Name**: Domain Search App  
 **Goal**: Provide instant domain availability checking with registrar suggestions and pricing  
 **Features**: 
-- Real-time domain search with suggestions
-- Domain availability checking via DNS lookup
+- Real-time domain search powered by Domainr API
+- Domain availability checking with batch status verification
 - WHOIS information for registered domains
 - Multiple registrar options with pricing
 - Admin panel for managing registrars and settings
@@ -49,11 +49,12 @@ A modern, Domainr.com-inspired domain search and availability checker built with
 
 ### Data Flow
 
-1. User searches for domain → API checks cache
-2. If not cached or expired → DNS lookup via Cloudflare DNS
-3. Results stored in cache (24h expiry)
-4. Available domains → fetch registrar pricing from D1
-5. Taken domains → WHOIS lookup on demand
+1. User searches for domain → Domainr API search endpoint
+2. Get domain suggestions from Domainr
+3. Batch check availability via Domainr status endpoint
+4. Results stored in cache (24h expiry)
+5. Available domains → fetch registrar pricing from D1
+6. Taken domains → WHOIS lookup on demand
 
 ## 🚀 Features
 
@@ -61,8 +62,8 @@ A modern, Domainr.com-inspired domain search and availability checker built with
 
 ✅ **Search Functionality**
 - Real-time domain search with debouncing (500ms)
-- Automatic domain variations generation
-- DNS-based availability checking
+- Powered by Domainr API for accurate domain suggestions
+- Batch availability checking via Domainr status endpoint
 - 24-hour result caching
 
 ✅ **Domain Information**
@@ -100,9 +101,10 @@ A modern, Domainr.com-inspired domain search and availability checker built with
 #### Public API Routes
 
 1. **POST /api/search**
-   - Search for domains and check availability
+   - Search for domains using Domainr API and check availability
    - Body: `{ "query": "keyword or domain" }`
    - Returns: Domain results with availability status and registrar info
+   - Note: Requires Domainr API key configured in admin panel
 
 2. **GET /api/whois/:domain**
    - Get WHOIS information for a specific domain
@@ -164,10 +166,13 @@ A modern, Domainr.com-inspired domain search and availability checker built with
 - Domain expiration monitoring
 - Bulk domain checking
 
-⏳ **External API Integration**
+✅ **External API Integration**
+- Domainr API for domain search and availability (requires API key)
 - Real WHOIS API integration (requires API key)
-- Domain suggestion API
+
+⏳ **Additional API Integration**
 - Real-time registrar pricing updates
+- Domain value estimation API
 
 ⏳ **User Features**
 - User authentication
@@ -231,7 +236,8 @@ A modern, Domainr.com-inspired domain search and availability checker built with
    - Link pricing to registrars
 
 4. **Configure API Keys**
-   - Update WHOIS API credentials
+   - **Required**: Configure Domainr API key from RapidAPI (https://rapidapi.com/domainr/api/domainr)
+   - Update WHOIS API credentials (optional)
    - Enable/disable API services
    - Set base URLs for external APIs
 
@@ -340,14 +346,16 @@ npm run deploy:prod
 - **Sandbox**: ✅ Running at https://3000-iv1vxn8zmieucln7qg72m-18e660f9.sandbox.novita.ai
 - **Tech Stack**: Hono + TypeScript + TailwindCSS + D1 Database
 - **Backup**: ✅ Available at https://page.gensparksite.com/project_backups/domain-search-app-v1.tar.gz
-- **Last Updated**: 2025-10-18
+- **Last Updated**: 2025-10-26
+- **API Integration**: Domainr API via RapidAPI
 
 ## 🎯 Recommended Next Steps
 
-1. **Configure External APIs**
-   - Sign up for WhoisXML API
-   - Add API key in admin panel
-   - Test WHOIS lookups with real data
+1. **Configure External APIs** (Required)
+   - Sign up for Domainr API on RapidAPI (https://rapidapi.com/domainr/api/domainr)
+   - Add Domainr API key in admin panel (service_name: domainr_api)
+   - Test domain search functionality
+   - Optional: Sign up for WhoisXML API for enhanced WHOIS data
 
 2. **Deploy to Production**
    - Create D1 production database
