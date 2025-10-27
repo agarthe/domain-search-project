@@ -498,8 +498,7 @@ function showDomainDetails(result) {
                  class="registrar-item flex items-center justify-between px-3 py-3 transition"
                  onmouseenter="this.style.backgroundColor=document.documentElement.classList.contains('dark')?'#1f2937':'#fafafa'"
                  onmouseleave="this.style.backgroundColor='transparent'">
-                <div class="flex items-center" style="gap: 0.75rem; flex: 1;">
-                  ${reg.logo_url ? `<img src="${reg.logo_url}" alt="${reg.name}" class="w-6 h-6">` : '<i class="fas fa-globe text-gray-400"></i>'}
+                <div class="flex items-center" style="flex: 1;">
                   <div class="font-medium">${reg.name}</div>
                 </div>
                 <div class="flex" style="gap: 2rem;">

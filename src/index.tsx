@@ -742,6 +742,40 @@ app.get('/', (c) => {
             align-items: start;
           }
           
+          /* Logo tooltip */
+          .logo-link {
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+          }
+          
+          .logo-link:hover {
+            transform: scale(1.1);
+          }
+          
+          .logo-tooltip {
+            position: absolute;
+            left: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+            margin-left: 0.5rem;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+            color: var(--text-primary);
+          }
+          
+          .logo-link:hover .logo-tooltip {
+            opacity: 1;
+          }
+          
           /* Modal styles */
           .modal-overlay {
             position: fixed;
@@ -777,6 +811,10 @@ app.get('/', (c) => {
             
             .header-menu-mobile {
               display: block !important;
+            }
+            
+            .logo-tooltip {
+              display: none !important;
             }
             
             .results-wrapper {
@@ -838,7 +876,15 @@ app.get('/', (c) => {
                 <div class="flex items-center" style="gap: 1rem;">
                     <!-- Left: Logo and Title -->
                     <div class="flex items-center flex-shrink-0" style="gap: 0.5rem;">
-                        <i class="fas fa-dog text-blue-600 text-2xl"></i>
+                        <a href="/" class="logo-link relative">
+                            <i class="fas fa-dog text-blue-600 text-2xl"></i>
+                            <div class="logo-tooltip">
+                                <div style="font-size: 0.68rem; margin-bottom: -0.25rem;">
+                                    <span data-i18n="tagline">Fetch Domain, Woof!</span>
+                                </div>
+                                <div class="font-bold">inu.name</div>
+                            </div>
+                        </a>
                         <div class="header-title-full">
                             <div style="color: var(--text-secondary); font-size: 0.68rem; margin-bottom: -0.25rem;">
                                 <span data-i18n="tagline">Fetch Domain, Woof!</span>
@@ -1002,7 +1048,7 @@ app.get('/', (c) => {
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <script src="/static/app.js?v=21"></script>
+        <script src="/static/app.js?v=22"></script>
     </body>
     </html>
   `)
