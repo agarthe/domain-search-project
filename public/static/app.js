@@ -152,6 +152,7 @@ const translations = {
     'whois.created': 'Created',
     'whois.expires': 'Expires',
     'whois.updated': 'Updated',
+    'broker.button': 'Make an Offer',
     'error.search': 'Failed to search domains. Please try again.',
     'error.whois': 'Failed to load WHOIS data.'
   },
@@ -197,6 +198,7 @@ const translations = {
     'whois.created': '作成日',
     'whois.expires': '有効期限',
     'whois.updated': '更新日',
+    'broker.button': '購入の交渉をする',
     'error.search': 'ドメイン検索に失敗しました。もう一度お試しください。',
     'error.whois': 'WHOISデータの読み込みに失敗しました。'
   }
@@ -548,8 +550,13 @@ function showDomainDetails(result) {
     // Show WHOIS for taken domains
     content.innerHTML = '<div class="loader mx-auto"></div><p class="text-center mt-4">' + t('whois.loading') + '</p>';
     
-    fetchWhoisData(result.domain).then(data => {
-      const whois = data.whois;
+    // Fetch broker link and WHOIS data
+    Promise.all([
+      fetch('/api/settings/broker-link').then(r => r.json()),
+      fetchWhoisData(result.domain)
+    ]).then(([brokerData, whoisResponse]) => {
+      const whois = whoisResponse.whois;
+      const brokerLink = brokerData.broker_link;
       
       // Check if we have parsed data from Whois55 API
       if (whois.parsed) {
@@ -626,7 +633,24 @@ function showDomainDetails(result) {
           `;
         }
         
+        // Build broker button if link is configured
+        let brokerButtonHtml = '';
+        if (brokerLink) {
+          const finalBrokerUrl = brokerLink.replace(/\{\{\s*domain\s*\}\}/g, result.domain);
+          brokerButtonHtml = `
+            <div class="mb-4 pb-4" style="border-bottom: 1px solid var(--border-color);">
+              <button 
+                onclick="window.open('${finalBrokerUrl}', '_blank', 'noopener,noreferrer'); return false;" 
+                class="w-full px-4 py-2 text-blue-600 border border-blue-600 rounded hover:bg-blue-50 dark:hover:bg-blue-900 transition font-medium text-sm"
+                style="cursor: pointer;">
+                ${t('broker.button')}
+              </button>
+            </div>
+          `;
+        }
+        
         content.innerHTML = `
+          ${brokerButtonHtml}
           <div class="space-y-0">
             ${cardsHtml}
           </div>
@@ -640,7 +664,7 @@ function showDomainDetails(result) {
         `;
       }
     }).catch(error => {
-      console.error('WHOIS error:', error);
+      console.error('Error loading data:', error);
       content.innerHTML = `<p class="text-red-600">${t('error.whois')}</p>`;
     });
   } else {

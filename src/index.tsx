@@ -543,6 +543,70 @@ app.put('/api/admin/apikeys/:id', async (c) => {
 })
 
 // ============================================
+// Settings Management API
+// ============================================
+
+/**
+ * GET /api/admin/settings
+ * Get all settings
+ */
+app.get('/api/admin/settings', async (c) => {
+  try {
+    const db = c.env.DB
+    const result = await db.prepare(`
+      SELECT setting_key, setting_value, description, updated_at
+      FROM settings
+    `).all()
+
+    return c.json(result.results)
+  } catch (error) {
+    return c.json({ error: 'Failed to fetch settings' }, 500)
+  }
+})
+
+/**
+ * PUT /api/admin/settings/:key
+ * Update a setting
+ */
+app.put('/api/admin/settings/:key', async (c) => {
+  try {
+    const db = c.env.DB
+    const key = c.req.param('key')
+    const data = await c.req.json()
+
+    await db.prepare(`
+      INSERT OR REPLACE INTO settings (setting_key, setting_value, updated_at)
+      VALUES (?, ?, datetime('now'))
+    `).bind(key, data.value).run()
+
+    return c.json({ success: true })
+  } catch (error) {
+    return c.json({ error: 'Failed to update setting' }, 500)
+  }
+})
+
+/**
+ * GET /api/settings/broker-link
+ * Get broker link for frontend (public endpoint)
+ */
+app.get('/api/settings/broker-link', async (c) => {
+  try {
+    const db = c.env.DB
+    const result = await db.prepare(`
+      SELECT setting_value
+      FROM settings
+      WHERE setting_key = 'domain_broker_link'
+    `).first() as { setting_value: string } | null
+
+    return c.json({ 
+      broker_link: result?.setting_value || null 
+    })
+  } catch (error) {
+    return c.json({ error: 'Failed to fetch broker link' }, 500)
+  }
+})
+
+// ============================================
 // Main Page Route
 // ============================================
 
@@ -827,7 +891,7 @@ app.get('/', (c) => {
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <script src="/static/app.js?v=18"></script>
+        <script src="/static/app.js?v=19"></script>
     </body>
     </html>
   `)
@@ -930,6 +994,9 @@ app.get('/admin', (c) => {
                     </button>
                     <button class="tab-btn px-4 py-2 font-semibold" style="border-bottom: 2px solid transparent;" data-tab="apikeys">
                         <i class="fas fa-key mr-2"></i>API Keys
+                    </button>
+                    <button class="tab-btn px-4 py-2 font-semibold" style="border-bottom: 2px solid transparent;" data-tab="settings">
+                        <i class="fas fa-cog mr-2"></i>Settings
                     </button>
                 </nav>
             </div>
@@ -1060,6 +1127,52 @@ app.get('/admin', (c) => {
                 <div class="panel-card rounded-lg p-6">
                     <div class="space-y-4" id="apiKeysList">
                         <!-- Will be populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="settingsTab" class="tab-content hidden">
+                <div class="panel-card rounded-lg p-6 mb-6">
+                    <h2 class="text-xl font-bold mb-4">Application Settings</h2>
+                    <p class="text-sm mb-4" style="color: var(--text-secondary);">
+                        Configure general application settings and features.
+                    </p>
+                </div>
+                
+                <!-- Domain Broker Link Setting -->
+                <div class="panel-card rounded-lg p-6">
+                    <h3 class="text-lg font-semibold mb-3">
+                        <i class="fas fa-handshake mr-2 text-blue-600"></i>
+                        Domain Broker Link
+                    </h3>
+                    <p class="text-sm mb-4" style="color: var(--text-secondary);">
+                        Configure the domain broker service link that appears in the WHOIS modal for taken domains.
+                        Use <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{{ domain }}</code> as a placeholder for the domain name.
+                    </p>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Broker Link Template</label>
+                            <input 
+                                type="text" 
+                                id="brokerLinkInput" 
+                                class="w-full px-3 py-2 rounded border" 
+                                style="background-color: var(--bg-primary); border-color: var(--border-color);"
+                                placeholder="https://domainagents.com/offer/{{ domain }}"
+                            >
+                            <p class="text-xs mt-1" style="color: var(--text-secondary);">
+                                Example: <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">https://domainagents.com/offer/{{ domain }}</code>
+                            </p>
+                        </div>
+                        
+                        <button 
+                            id="saveBrokerLinkBtn" 
+                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                            <i class="fas fa-save mr-2"></i>Save Settings
+                        </button>
+                        
+                        <div id="brokerLinkStatus" class="text-sm hidden"></div>
                     </div>
                 </div>
             </div>

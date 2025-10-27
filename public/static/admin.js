@@ -456,6 +456,48 @@ async function updateApiKey(id, data) {
 }
 
 // ============================================
+// Settings Management
+// ============================================
+async function loadSettings() {
+  try {
+    const response = await axios.get('/api/admin/settings');
+    const settings = response.data;
+    
+    // Find broker link setting
+    const brokerLinkSetting = settings.find(s => s.setting_key === 'domain_broker_link');
+    if (brokerLinkSetting) {
+      document.getElementById('brokerLinkInput').value = brokerLinkSetting.setting_value || '';
+    }
+  } catch (error) {
+    console.error('Failed to load settings:', error);
+    alert('Failed to load settings');
+  }
+}
+
+async function saveBrokerLink() {
+  const input = document.getElementById('brokerLinkInput');
+  const statusDiv = document.getElementById('brokerLinkStatus');
+  const value = input.value.trim();
+  
+  try {
+    await axios.put('/api/admin/settings/domain_broker_link', { value });
+    
+    statusDiv.textContent = '✓ Settings saved successfully!';
+    statusDiv.className = 'text-sm text-green-600';
+    statusDiv.classList.remove('hidden');
+    
+    setTimeout(() => {
+      statusDiv.classList.add('hidden');
+    }, 3000);
+  } catch (error) {
+    console.error('Failed to save settings:', error);
+    statusDiv.textContent = '✗ Failed to save settings';
+    statusDiv.className = 'text-sm text-red-600';
+    statusDiv.classList.remove('hidden');
+  }
+}
+
+// ============================================
 // Event Listeners
 // ============================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -479,6 +521,8 @@ document.addEventListener('DOMContentLoaded', () => {
         loadPricing();
       } else if (btn.dataset.tab === 'apikeys') {
         loadApiKeys();
+      } else if (btn.dataset.tab === 'settings') {
+        loadSettings();
       }
     });
   });
@@ -486,6 +530,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Add buttons
   document.getElementById('addRegistrarBtn').addEventListener('click', addRegistrar);
   document.getElementById('addPricingBtn').addEventListener('click', addPricing);
+  
+  // Settings buttons
+  const saveBrokerLinkBtn = document.getElementById('saveBrokerLinkBtn');
+  if (saveBrokerLinkBtn) {
+    saveBrokerLinkBtn.addEventListener('click', saveBrokerLink);
+  }
   
   // Bulk import buttons
   document.getElementById('bulkImportBtn').addEventListener('click', showBulkImportPanel);
