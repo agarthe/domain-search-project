@@ -153,6 +153,10 @@ const translations = {
     'whois.expires': 'Expires',
     'whois.updated': 'Updated',
     'broker.button': 'Make an Offer',
+    'header.language': 'Language',
+    'header.currency': 'Currency',
+    'header.theme': 'Theme',
+    'header.admin': 'Admin',
     'error.search': 'Failed to search domains. Please try again.',
     'error.whois': 'Failed to load WHOIS data.'
   },
@@ -199,6 +203,10 @@ const translations = {
     'whois.expires': '有効期限',
     'whois.updated': '更新日',
     'broker.button': '購入の交渉をする',
+    'header.language': '言語',
+    'header.currency': '通貨',
+    'header.theme': 'テーマ',
+    'header.admin': '管理画面',
     'error.search': 'ドメイン検索に失敗しました。もう一度お試しください。',
     'error.whois': 'WHOISデータの読み込みに失敗しました。'
   }
@@ -241,6 +249,11 @@ function applyTheme(theme) {
   if (icon) {
     icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
   }
+  
+  const iconMobile = document.getElementById('themeIconMobile');
+  if (iconMobile) {
+    iconMobile.className = theme === 'dark' ? 'fas fa-sun mr-2' : 'fas fa-moon mr-2';
+  }
 }
 
 function switchLanguage(lang) {
@@ -252,6 +265,12 @@ function switchLanguage(lang) {
 
 function switchCurrency(currency) {
   currentCurrency = currency;
+  
+  // Update mobile currency icon
+  const iconMobile = document.getElementById('currencyIconMobile');
+  if (iconMobile) {
+    iconMobile.className = currency === 'JPY' ? 'fas fa-yen-sign mr-2' : 'fas fa-dollar-sign mr-2';
+  }
   localStorage.setItem('currency', currency);
   
   // Update icon
@@ -719,6 +738,44 @@ document.addEventListener('DOMContentLoaded', () => {
   if (currencyToggle) {
     currencyToggle.addEventListener('click', () => {
       switchCurrency(currentCurrency === 'USD' ? 'JPY' : 'USD');
+    });
+  }
+  
+  // Mobile menu toggle
+  const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+  const mobileMenu = document.getElementById('mobileMenu');
+  if (mobileMenuBtn && mobileMenu) {
+    mobileMenuBtn.addEventListener('click', () => {
+      mobileMenu.classList.toggle('hidden');
+    });
+    
+    // Mobile theme toggle
+    document.getElementById('themeToggleMobile').addEventListener('click', () => {
+      applyTheme(currentTheme === 'light' ? 'dark' : 'light');
+      mobileMenu.classList.add('hidden');
+    });
+    
+    // Mobile language toggle
+    document.getElementById('langToggleMobile').addEventListener('click', () => {
+      const newLang = currentLang === 'en' ? 'ja' : 'en';
+      switchLanguage(newLang);
+      const newCurrency = newLang === 'ja' ? 'JPY' : 'USD';
+      switchCurrency(newCurrency);
+      document.getElementById('currentLangMobile').textContent = newLang.toUpperCase();
+      mobileMenu.classList.add('hidden');
+    });
+    
+    // Mobile currency toggle
+    document.getElementById('currencyToggleMobile').addEventListener('click', () => {
+      switchCurrency(currentCurrency === 'USD' ? 'JPY' : 'USD');
+      mobileMenu.classList.add('hidden');
+    });
+    
+    // Close mobile menu when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!mobileMenuBtn.contains(e.target) && !mobileMenu.contains(e.target)) {
+        mobileMenu.classList.add('hidden');
+      }
     });
   }
 

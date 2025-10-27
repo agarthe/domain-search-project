@@ -728,6 +728,66 @@ app.get('/', (c) => {
             flex: 1 0 auto;
           }
           
+          /* Results wrapper */
+          .results-wrapper {
+            max-width: 600px;
+            margin: 0 auto;
+          }
+          
+          /* Footer grid */
+          .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 2rem;
+            align-items: start;
+          }
+          
+          /* Mobile responsive styles */
+          @media (max-width: 768px) {
+            .header-title-full {
+              display: none;
+            }
+            
+            .header-actions-desktop {
+              display: none;
+            }
+            
+            .header-menu-mobile {
+              display: block;
+            }
+            
+            .results-wrapper {
+              max-width: 100%;
+            }
+            
+            .footer-grid {
+              grid-template-columns: 1fr 1fr;
+              gap: 1rem;
+              font-size: 0.875rem;
+            }
+            
+            .footer-about {
+              grid-column: 1 / -1;
+            }
+            
+            /* Modal adjustments for mobile */
+            #domainModal .domain-card {
+              margin: 1rem;
+              max-height: 90vh;
+            }
+            
+            /* Results font size for mobile */
+            .domain-card {
+              font-size: 0.9rem;
+            }
+          }
+          
+          @media (min-width: 769px) {
+            .header-menu-mobile {
+              display: none;
+            }
+          }
+          
           footer {
             flex-shrink: 0;
           }
@@ -737,11 +797,11 @@ app.get('/', (c) => {
         <!-- Header -->
         <header style="background-color: var(--bg-header); border-bottom: 1px solid var(--border-color);" class="sticky top-0 z-50">
             <div class="max-w-7xl mx-auto px-4 py-4">
-                <div class="flex items-center" style="gap: 1.5rem;">
+                <div class="flex items-center" style="gap: 1rem;">
                     <!-- Left: Logo and Title -->
                     <div class="flex items-center flex-shrink-0" style="gap: 0.5rem;">
                         <i class="fas fa-dog text-blue-600 text-2xl"></i>
-                        <div>
+                        <div class="header-title-full">
                             <div style="color: var(--text-secondary); font-size: 0.68rem; margin-bottom: -0.25rem;">
                                 <span data-i18n="tagline">Fetch Domain, Woof!</span>
                             </div>
@@ -749,8 +809,8 @@ app.get('/', (c) => {
                         </div>
                     </div>
                     
-                    <!-- Search Box (right after title) -->
-                    <div class="w-96">
+                    <!-- Search Box (flexible width) -->
+                    <div class="flex-1 min-w-0">
                         <div class="relative">
                             <input 
                                 type="text" 
@@ -769,8 +829,8 @@ app.get('/', (c) => {
                         </div>
                     </div>
                     
-                    <!-- Right: Actions -->
-                    <div class="flex items-center space-x-2 flex-shrink-0 ml-auto">
+                    <!-- Right: Actions - Desktop -->
+                    <div class="header-actions-desktop flex items-center space-x-2 flex-shrink-0">
                         <!-- Language Toggle -->
                         <button id="langToggle" class="px-3 py-1 rounded transition" style="border: 1px solid transparent;" onmouseover="this.style.backgroundColor='var(--bg-primary)'; this.style.borderColor='var(--border-color)';" onmouseout="this.style.backgroundColor='transparent'; this.style.borderColor='transparent';">
                             <i class="fas fa-language mr-1"></i>
@@ -789,6 +849,36 @@ app.get('/', (c) => {
                             <i class="fas fa-cog"></i>
                         </a>
                     </div>
+                    
+                    <!-- Right: Mobile Menu Button -->
+                    <button id="mobileMenuBtn" class="header-menu-mobile px-3 py-1 rounded transition" style="border: 1px solid transparent;" onmouseover="this.style.backgroundColor='var(--bg-primary)'; this.style.borderColor='var(--border-color)';" onmouseout="this.style.backgroundColor='transparent'; this.style.borderColor='transparent';">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Mobile Menu Dropdown -->
+            <div id="mobileMenu" class="hidden" style="background-color: var(--bg-secondary); border-top: 1px solid var(--border-color);">
+                <div class="max-w-7xl mx-auto px-4 py-2">
+                    <div class="flex flex-col space-y-2">
+                        <button id="langToggleMobile" class="flex items-center px-3 py-2 rounded transition hover:bg-opacity-50" style="background-color: transparent;" onmouseover="this.style.backgroundColor='var(--bg-primary)'" onmouseout="this.style.backgroundColor='transparent'">
+                            <i class="fas fa-language mr-2"></i>
+                            <span data-i18n="header.language">Language</span>
+                            <span class="ml-auto" id="currentLangMobile">EN</span>
+                        </button>
+                        <button id="currencyToggleMobile" class="flex items-center px-3 py-2 rounded transition hover:bg-opacity-50" style="background-color: transparent;" onmouseover="this.style.backgroundColor='var(--bg-primary)'" onmouseout="this.style.backgroundColor='transparent'">
+                            <i class="fas fa-dollar-sign mr-2" id="currencyIconMobile"></i>
+                            <span data-i18n="header.currency">Currency</span>
+                        </button>
+                        <button id="themeToggleMobile" class="flex items-center px-3 py-2 rounded transition hover:bg-opacity-50" style="background-color: transparent;" onmouseover="this.style.backgroundColor='var(--bg-primary)'" onmouseout="this.style.backgroundColor='transparent'">
+                            <i class="fas fa-moon mr-2" id="themeIconMobile"></i>
+                            <span data-i18n="header.theme">Theme</span>
+                        </button>
+                        <a href="/admin" class="flex items-center px-3 py-2 rounded transition hover:bg-opacity-50" style="background-color: transparent;" onmouseover="this.style.backgroundColor='var(--bg-primary)'" onmouseout="this.style.backgroundColor='transparent'">
+                            <i class="fas fa-cog mr-2"></i>
+                            <span data-i18n="header.admin">Admin</span>
+                        </a>
+                    </div>
                 </div>
             </div>
         </header>
@@ -796,31 +886,17 @@ app.get('/', (c) => {
         <!-- Main Content -->
         <main>
             <div class="max-w-7xl mx-auto px-4 py-4">
-                <div class="flex items-start" style="gap: 1.5rem;">
-                    <!-- Left spacer (matches logo + title width) -->
-                    <div class="flex items-center flex-shrink-0" style="visibility: hidden; gap: 0.5rem;">
-                        <i class="fas fa-dog text-blue-600 text-2xl"></i>
-                        <div>
-                            <div style="font-size: 0.68rem; margin-bottom: -0.25rem;">
-                                <span>Fetch Domain, Woof!</span>
-                            </div>
-                            <h1 class="text-xl font-bold">inu.name</h1>
-                        </div>
+                <div class="results-wrapper">
+                    <!-- Loading State -->
+                    <div id="loadingState" class="hidden text-center py-12">
+                        <div class="loader mx-auto mb-4"></div>
+                        <p style="color: var(--text-secondary);" data-i18n="search.loading">Searching domains...</p>
                     </div>
-                    
-                    <!-- Results area (matches search box width) -->
-                    <div class="w-96">
-                        <!-- Loading State -->
-                        <div id="loadingState" class="hidden text-center py-12">
-                            <div class="loader mx-auto mb-4"></div>
-                            <p style="color: var(--text-secondary);" data-i18n="search.loading">Searching domains...</p>
-                        </div>
 
-                        <!-- Results -->
-                        <div id="resultsContainer" class="hidden">
-                            <div id="resultsList" class="divide-y" style="border-color: var(--border-color);">
-                                <!-- Results will be inserted here -->
-                            </div>
+                    <!-- Results -->
+                    <div id="resultsContainer" class="hidden">
+                        <div id="resultsList" class="divide-y" style="border-color: var(--border-color);">
+                            <!-- Results will be inserted here -->
                         </div>
                     </div>
                 </div>
@@ -829,43 +905,38 @@ app.get('/', (c) => {
 
         <!-- Footer -->
         <footer style="background-color: var(--bg-footer); border-top: 1px solid var(--border-color);">
-            <div class="max-w-7xl mx-auto px-4 py-8">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-                    <!-- About -->
-                    <div>
-                        <div class="flex items-center space-x-2 mb-4">
-                            <i class="fas fa-dog text-blue-600 text-xl"></i>
-                            <div>
-                                <div style="color: var(--text-secondary); font-size: 0.68rem; margin-bottom: -0.45rem;">
-                                    <span data-i18n="tagline">Fetch Domain, Woof!</span>
-                                </div>
-                                <h3 class="text-lg font-bold">inu.name</h3>
-                            </div>
+            <div class="max-w-7xl mx-auto px-4 py-6">
+                <div class="footer-grid">
+                    <!-- Logo and About -->
+                    <div class="footer-about">
+                        <div class="flex items-center space-x-2 mb-2">
+                            <i class="fas fa-dog text-blue-600"></i>
+                            <h3 class="font-bold">inu.name</h3>
                         </div>
-                        <p class="text-sm" style="color: var(--text-secondary);">
-                            Fast and simple domain name search tool. Find your perfect domain instantly.
+                        <p class="text-xs" style="color: var(--text-secondary);">
+                            Fast domain search tool
                         </p>
                     </div>
                     
                     <!-- Quick Links -->
-                    <div>
-                        <h4 class="font-semibold mb-4">Quick Links</h4>
-                        <ul class="space-y-2 text-sm" style="color: var(--text-secondary);">
+                    <div class="footer-links">
+                        <h4 class="font-semibold text-sm mb-2">Links</h4>
+                        <ul class="space-y-1 text-xs" style="color: var(--text-secondary);">
                             <li><a href="/" class="hover:text-blue-600 transition">Home</a></li>
-                            <li><a href="/admin" class="hover:text-blue-600 transition">Admin Panel</a></li>
+                            <li><a href="/admin" class="hover:text-blue-600 transition">Admin</a></li>
                         </ul>
                     </div>
                     
-                    <!-- Contact & Social -->
-                    <div>
-                        <h4 class="font-semibold mb-4">Connect</h4>
-                        <div class="flex space-x-4">
+                    <!-- Social -->
+                    <div class="footer-social">
+                        <h4 class="font-semibold text-sm mb-2">Connect</h4>
+                        <div class="flex space-x-3">
                             <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" 
-                               class="text-2xl hover:text-blue-400 transition" style="color: var(--text-secondary);">
+                               class="text-lg hover:text-blue-400 transition" style="color: var(--text-secondary);">
                                 <i class="fab fa-twitter"></i>
                             </a>
                             <a href="mailto:info@inu.name" 
-                               class="text-2xl hover:text-blue-600 transition" style="color: var(--text-secondary);">
+                               class="text-lg hover:text-blue-600 transition" style="color: var(--text-secondary);">
                                 <i class="fas fa-envelope"></i>
                             </a>
                         </div>
@@ -873,8 +944,8 @@ app.get('/', (c) => {
                 </div>
                 
                 <!-- Copyright -->
-                <div class="pt-8 border-t text-center text-sm" style="border-color: var(--border-color); color: var(--text-secondary);">
-                    <p>&copy; 2025 inu.name. All rights reserved. Built with Hono & Cloudflare Pages.</p>
+                <div class="pt-4 mt-4 border-t text-center text-xs" style="border-color: var(--border-color); color: var(--text-secondary);">
+                    <p>&copy; 2025 inu.name. Built with Hono & Cloudflare.</p>
                 </div>
             </div>
         </footer>
@@ -893,7 +964,7 @@ app.get('/', (c) => {
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <script src="/static/app.js?v=19"></script>
+        <script src="/static/app.js?v=20"></script>
     </body>
     </html>
   `)
