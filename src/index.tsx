@@ -745,15 +745,15 @@ app.get('/', (c) => {
           /* Mobile responsive styles */
           @media (max-width: 768px) {
             .header-title-full {
-              display: none;
+              display: none !important;
             }
             
             .header-actions-desktop {
-              display: none;
+              display: none !important;
             }
             
             .header-menu-mobile {
-              display: block;
+              display: block !important;
             }
             
             .results-wrapper {
@@ -784,7 +784,15 @@ app.get('/', (c) => {
           
           @media (min-width: 769px) {
             .header-menu-mobile {
-              display: none;
+              display: none !important;
+            }
+            
+            .header-actions-desktop {
+              display: flex !important;
+            }
+            
+            .header-title-full {
+              display: block !important;
             }
           }
           
