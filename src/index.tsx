@@ -742,6 +742,29 @@ app.get('/', (c) => {
             align-items: start;
           }
           
+          /* Modal styles */
+          .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+          }
+          
+          .modal-content {
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            max-width: 42rem;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+          }
+          
           /* Mobile responsive styles */
           @media (max-width: 768px) {
             .header-title-full {
@@ -770,10 +793,17 @@ app.get('/', (c) => {
               grid-column: 1 / -1;
             }
             
-            /* Modal adjustments for mobile */
-            #domainModal .domain-card {
-              margin: 1rem;
-              max-height: 90vh;
+            /* Modal adjustments for mobile - bottom sheet style */
+            .modal-overlay {
+              align-items: flex-end;
+              padding: 0;
+            }
+            
+            .modal-content {
+              max-width: 100%;
+              max-height: 85vh;
+              border-radius: 1rem 1rem 0 0;
+              padding: 1rem;
             }
             
             /* Results font size for mobile */
@@ -959,11 +989,11 @@ app.get('/', (c) => {
         </footer>
 
         <!-- Domain Details Modal -->
-        <div id="domainModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div class="domain-card max-w-2xl w-full rounded-lg p-6 max-h-[80vh] overflow-y-auto">
-                <div class="flex justify-between items-center mb-4">
+        <div id="domainModal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <div class="flex justify-between items-center mb-4 sticky top-0 z-10 pb-4" style="background-color: var(--bg-primary); border-bottom: 1px solid var(--border-color);">
                     <h3 class="text-xl font-bold" id="modalTitle">Domain Details</h3>
-                    <button id="closeModal" class="text-2xl hover:opacity-70">&times;</button>
+                    <button id="closeModal" class="text-2xl hover:opacity-70 px-2">&times;</button>
                 </div>
                 <div id="modalContent" class="text-sm">
                     <div class="loader mx-auto"></div>
@@ -972,7 +1002,7 @@ app.get('/', (c) => {
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <script src="/static/app.js?v=20"></script>
+        <script src="/static/app.js?v=21"></script>
     </body>
     </html>
   `)

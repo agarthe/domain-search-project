@@ -153,6 +153,7 @@ const translations = {
     'whois.expires': 'Expires',
     'whois.updated': 'Updated',
     'broker.button': 'Make an Offer',
+    'registrar.register_now': 'Register Now',
     'header.language': 'Language',
     'header.currency': 'Currency',
     'header.theme': 'Theme',
@@ -203,6 +204,7 @@ const translations = {
     'whois.expires': '有効期限',
     'whois.updated': '更新日',
     'broker.button': '購入の交渉をする',
+    'registrar.register_now': '今すぐ登録する',
     'header.language': '言語',
     'header.currency': '通貨',
     'header.theme': 'テーマ',
@@ -441,8 +443,24 @@ function showDomainDetails(result) {
     let currentSortBy = 'price';
     
     function renderRegistrars() {
+      // Find cheapest registrar
+      const cheapestRegistrar = sortedRegistrars[0];
+      
       content.innerHTML = `
         <div class="space-y-4">
+          <!-- Register Now Button (mobile friendly) -->
+          <div class="mb-4">
+            <a href="${cheapestRegistrar.register_url}" 
+               target="_blank" 
+               rel="noopener noreferrer"
+               class="block w-full px-4 py-3 bg-green-600 text-white text-center font-semibold rounded-lg hover:bg-green-700 transition">
+              ${t('registrar.register_now')}
+            </a>
+            <p class="text-xs text-center mt-2" style="color: var(--text-secondary);">
+              ${cheapestRegistrar.name} - ${formatPrice(cheapestRegistrar.price, cheapestRegistrar.currency)}
+            </p>
+          </div>
+          
           <!-- Header with sort buttons -->
           <div class="flex items-center justify-between px-3 py-2" style="border-bottom: 2px solid var(--border-color);">
             <div class="font-semibold" style="flex: 1;">${t('registrar.header')}</div>
@@ -642,7 +660,7 @@ function showDomainDetails(result) {
         // Contact Info Card
         if (parsed['Registrar Abuse Contact Email'] || parsed['Registrar Abuse Contact Phone']) {
           cardsHtml += `
-            <div class="pb-4">
+            <div class="pb-4 mb-4" style="border-bottom: 1px solid var(--border-color);">
               <h4 class="font-semibold mb-3 text-sm" style="color: var(--text-secondary);">${t('whois.contact')}</h4>
               <div class="space-y-2">
                 ${parsed['Registrar Abuse Contact Email'] ? `<div class="flex items-center gap-2"><i class="fas fa-envelope text-xs" style="color: var(--text-secondary);"></i><a href="mailto:${parsed['Registrar Abuse Contact Email']}" class="text-blue-600 hover:underline text-sm">${parsed['Registrar Abuse Contact Email']}</a></div>` : ''}
