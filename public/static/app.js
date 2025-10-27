@@ -641,7 +641,7 @@ function showDomainDetails(result) {
             <div class="mb-4 pb-4" style="border-bottom: 1px solid var(--border-color);">
               <button 
                 onclick="window.open('${finalBrokerUrl}', '_blank', 'noopener,noreferrer'); return false;" 
-                class="w-full px-4 py-2 text-blue-600 border border-blue-600 rounded hover:bg-blue-600 hover:text-white transition font-medium text-sm"
+                class="w-full px-4 py-2 bg-blue-600 text-white border border-blue-600 rounded hover:bg-transparent hover:text-blue-600 transition font-medium text-sm"
                 style="cursor: pointer;">
                 ${t('broker.button')}
               </button>
