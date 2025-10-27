@@ -628,6 +628,7 @@ app.get('/', (c) => {
             --bg-primary: #ffffff;
             --bg-secondary: #f9fafb;
             --bg-header: #ffffff;
+            --bg-footer: #f9fafb;
             --text-primary: #111827;
             --text-secondary: #6b7280;
             --border-color: #e5e7eb;
@@ -640,7 +641,8 @@ app.get('/', (c) => {
           .dark {
             --bg-primary: #111827;
             --bg-secondary: #1f2937;
-            --bg-header: #1f2937;
+            --bg-header: #111827;
+            --bg-footer: #18202e;
             --text-primary: #f9fafb;
             --text-secondary: #9ca3af;
             --border-color: #374151;
@@ -826,7 +828,7 @@ app.get('/', (c) => {
         </main>
 
         <!-- Footer -->
-        <footer style="background-color: var(--bg-secondary); border-top: 1px solid var(--border-color);">
+        <footer style="background-color: var(--bg-footer); border-top: 1px solid var(--border-color);">
             <div class="max-w-7xl mx-auto px-4 py-8">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
                     <!-- About -->
