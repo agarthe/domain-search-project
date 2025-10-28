@@ -6,6 +6,9 @@
 let currentTheme = localStorage.getItem('theme') || 'light';
 let registrarsData = [];
 let pricingData = [];
+let filteredPricingData = [];
+let currentPage = 1;
+let pageSize = 25;
 
 // ============================================
 // Theme Management
@@ -189,6 +192,8 @@ async function loadPricing() {
   try {
     const response = await axios.get('/api/admin/pricing');
     pricingData = response.data;
+    filteredPricingData = [...pricingData];
+    currentPage = 1;
     renderPricing();
   } catch (error) {
     console.error('Failed to load pricing:', error);
@@ -196,20 +201,44 @@ async function loadPricing() {
   }
 }
 
+function filterPricing(searchTerm) {
+  const term = searchTerm.toLowerCase().trim();
+  if (!term) {
+    filteredPricingData = [...pricingData];
+  } else {
+    filteredPricingData = pricingData.filter(price => 
+      price.tld.toLowerCase().includes(term) || 
+      price.registrar_name.toLowerCase().includes(term)
+    );
+  }
+  currentPage = 1;
+  renderPricing();
+}
+
 function renderPricing() {
   const tbody = document.querySelector('#pricingTable tbody');
   tbody.innerHTML = '';
 
-  pricingData.forEach(price => {
+  // Calculate pagination
+  const totalItems = filteredPricingData.length;
+  const itemsToShow = pageSize === 'all' ? totalItems : parseInt(pageSize);
+  const totalPages = pageSize === 'all' ? 1 : Math.ceil(totalItems / itemsToShow);
+  const startIndex = pageSize === 'all' ? 0 : (currentPage - 1) * itemsToShow;
+  const endIndex = pageSize === 'all' ? totalItems : Math.min(startIndex + itemsToShow, totalItems);
+  
+  const itemsToDisplay = filteredPricingData.slice(startIndex, endIndex);
+
+  // Render table rows
+  itemsToDisplay.forEach(price => {
     const row = document.createElement('tr');
     row.style.borderBottom = '1px solid var(--border-color)';
     row.innerHTML = `
       <td class="py-3 px-4">${price.registrar_name}</td>
       <td class="py-3 px-4">${price.tld}</td>
-      <td class="py-3 px-4">${price.price}</td>
-      <td class="py-3 px-4">${price.renewal_price || 'N/A'}</td>
-      <td class="py-3 px-4">${price.transfer_price || 'N/A'}</td>
       <td class="py-3 px-4">${price.currency}</td>
+      <td class="py-3 px-4">${price.price}</td>
+      <td class="py-3 px-4">${price.renewal_price || '-'}</td>
+      <td class="py-3 px-4">${price.transfer_price || '-'}</td>
       <td class="py-3 px-4">
         <button onclick="editPricing(${price.id})" class="text-blue-600 hover:underline mr-2">
           <i class="fas fa-edit"></i>
@@ -221,6 +250,24 @@ function renderPricing() {
     `;
     tbody.appendChild(row);
   });
+
+  // Update pagination info
+  const resultInfo = document.getElementById('pricingResultInfo');
+  if (resultInfo) {
+    resultInfo.textContent = `Showing ${startIndex + 1}-${endIndex} of ${totalItems} entries`;
+  }
+
+  // Update pagination buttons
+  const prevBtn = document.getElementById('pricingPrevBtn');
+  const nextBtn = document.getElementById('pricingNextBtn');
+  
+  if (prevBtn) {
+    prevBtn.disabled = currentPage <= 1 || pageSize === 'all';
+  }
+  
+  if (nextBtn) {
+    nextBtn.disabled = currentPage >= totalPages || pageSize === 'all';
+  }
 }
 
 async function deletePricing(id) {
@@ -501,6 +548,12 @@ async function saveBrokerLink() {
 // Event Listeners
 // ============================================
 document.addEventListener('DOMContentLoaded', () => {
+  // Set current year in footer
+  const yearElement = document.getElementById('currentYear');
+  if (yearElement) {
+    yearElement.textContent = new Date().getFullYear();
+  }
+  
   // Apply theme
   applyTheme(currentTheme);
 
@@ -541,6 +594,46 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('bulkImportBtn').addEventListener('click', showBulkImportPanel);
   document.getElementById('importExecuteBtn').addEventListener('click', executeBulkImport);
   document.getElementById('importCancelBtn').addEventListener('click', hideBulkImportPanel);
+
+  // Pricing pagination and filtering
+  const pricingSearchInput = document.getElementById('pricingSearchInput');
+  if (pricingSearchInput) {
+    pricingSearchInput.addEventListener('input', (e) => {
+      filterPricing(e.target.value);
+    });
+  }
+  
+  const pricingPageSize = document.getElementById('pricingPageSize');
+  if (pricingPageSize) {
+    pricingPageSize.addEventListener('change', (e) => {
+      pageSize = e.target.value;
+      currentPage = 1;
+      renderPricing();
+    });
+  }
+  
+  const pricingPrevBtn = document.getElementById('pricingPrevBtn');
+  if (pricingPrevBtn) {
+    pricingPrevBtn.addEventListener('click', () => {
+      if (currentPage > 1) {
+        currentPage--;
+        renderPricing();
+      }
+    });
+  }
+  
+  const pricingNextBtn = document.getElementById('pricingNextBtn');
+  if (pricingNextBtn) {
+    pricingNextBtn.addEventListener('click', () => {
+      const totalItems = filteredPricingData.length;
+      const itemsPerPage = parseInt(pageSize);
+      const totalPages = Math.ceil(totalItems / itemsPerPage);
+      if (currentPage < totalPages) {
+        currentPage++;
+        renderPricing();
+      }
+    });
+  }
 
   // Load initial data
   loadRegistrars();

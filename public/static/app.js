@@ -222,7 +222,7 @@ function t(key) {
 }
 
 function formatDate(dateString) {
-  if (!dateString) return 'N/A';
+  if (!dateString) return '-';
   
   try {
     const date = new Date(dateString);
@@ -288,7 +288,7 @@ function switchCurrency(currency) {
 }
 
 function formatPrice(price, sourceCurrency = 'USD') {
-  if (!price) return 'N/A';
+  if (!price) return '-';
   
   // If display currency matches source currency, no conversion needed
   if (currentCurrency === sourceCurrency) {
@@ -509,12 +509,12 @@ function showDomainDetails(result) {
                   </div>
                   <div class="text-right" style="min-width: 80px;">
                     <div class="${idx === 0 && currentSortBy === 'renewal_price' ? 'text-green-600 font-semibold' : ''}" style="color: ${!reg.renewal_price ? 'var(--text-secondary)' : ''}">
-                      ${reg.renewal_price ? formatPrice(reg.renewal_price, reg.currency) : 'N/A'}
+                      ${reg.renewal_price ? formatPrice(reg.renewal_price, reg.currency) : '-'}
                     </div>
                   </div>
                   <div class="text-right" style="min-width: 80px;">
                     <div class="${idx === 0 && currentSortBy === 'transfer_price' ? 'text-green-600 font-semibold' : ''}" style="color: ${!reg.transfer_price ? 'var(--text-secondary)' : ''}">
-                      ${reg.transfer_price ? formatPrice(reg.transfer_price, reg.currency) : 'N/A'}
+                      ${reg.transfer_price ? formatPrice(reg.transfer_price, reg.currency) : '-'}
                     </div>
                   </div>
                 </div>
@@ -725,6 +725,12 @@ async function fetchWhoisData(domain) {
 // Event Listeners
 // ============================================
 document.addEventListener('DOMContentLoaded', () => {
+  // Set current year in footer
+  const yearElement = document.getElementById('currentYear');
+  if (yearElement) {
+    yearElement.textContent = new Date().getFullYear();
+  }
+  
   // Fetch current exchange rate
   fetchExchangeRate();
   

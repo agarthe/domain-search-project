@@ -104,11 +104,11 @@ app.post('/api/search', async (c) => {
         status === 'available' ? 1 : status === 'taken' ? 0 : 2
       ).run()
 
-      // Get registrars for this TLD
+      // Get registrars for this TLD (only those with matching pricing)
       const domainRegistrars: RegistrarWithPrice[] = registrars.results
-        .filter((r: any) => r.tld === tld || r.tld === null)
+        .filter((r: any) => r.tld === tld && r.price !== null)
         .reduce((acc: RegistrarWithPrice[], curr: any) => {
-          // Avoid duplicates
+          // Avoid duplicates - take first occurrence (should be sorted by display_order)
           if (!acc.find(r => r.id === curr.id)) {
             acc.push({
               id: curr.id,
@@ -993,13 +993,15 @@ app.get('/', (c) => {
                 <div class="footer-grid">
                     <!-- Logo and About -->
                     <div class="footer-about">
-                        <div class="flex items-center space-x-2 mb-2">
-                            <i class="fas fa-dog text-blue-600"></i>
-                            <h3 class="font-bold">inu.name</h3>
-                        </div>
-                        <p class="text-xs" style="color: var(--text-secondary);">
-                            Fast domain search tool
-                        </p>
+                        <a href="/" class="block hover:opacity-80 transition">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <i class="fas fa-dog text-blue-600"></i>
+                                <h3 class="font-bold">inu.name</h3>
+                            </div>
+                            <p class="text-xs" style="color: var(--text-secondary);">
+                                Fast domain search tool
+                            </p>
+                        </a>
                     </div>
                     
                     <!-- Quick Links -->
@@ -1029,7 +1031,7 @@ app.get('/', (c) => {
                 
                 <!-- Copyright -->
                 <div class="pt-4 mt-4 border-t text-center text-xs" style="border-color: var(--border-color); color: var(--text-secondary);">
-                    <p>&copy; 2025 inu.name. Built with Hono & Cloudflare.</p>
+                    <p>&copy; <span id="currentYear">2025</span> Agarthe LLC — Made with ❤️🤖 in Tokyo</p>
                 </div>
             </div>
         </footer>
@@ -1223,16 +1225,35 @@ app.get('/admin', (c) => {
                 </div>
                 
                 <div class="panel-card rounded-lg p-6">
+                    <!-- Filters and Pagination Controls -->
+                    <div class="mb-4 flex flex-wrap gap-4 items-center">
+                        <div class="flex-1 min-w-[200px]">
+                            <input type="text" id="pricingSearchInput" placeholder="Search TLD or Registrar..." 
+                                   class="w-full px-3 py-2 rounded border" 
+                                   style="background-color: var(--bg-primary); border-color: var(--border-color);">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-sm" style="color: var(--text-secondary);">Show:</label>
+                            <select id="pricingPageSize" class="px-3 py-2 rounded border" 
+                                    style="background-color: var(--bg-primary); border-color: var(--border-color);">
+                                <option value="25">25</option>
+                                <option value="100">100</option>
+                                <option value="500">500</option>
+                                <option value="all">All</option>
+                            </select>
+                        </div>
+                    </div>
+                    
                     <div class="overflow-x-auto">
                         <table class="w-full" id="pricingTable">
                             <thead>
                                 <tr style="border-bottom: 1px solid var(--border-color);">
                                     <th class="text-left py-3 px-4">Registrar</th>
                                     <th class="text-left py-3 px-4">TLD</th>
+                                    <th class="text-left py-3 px-4">Currency</th>
                                     <th class="text-left py-3 px-4">Price</th>
                                     <th class="text-left py-3 px-4">Renewal</th>
                                     <th class="text-left py-3 px-4">Transfer</th>
-                                    <th class="text-left py-3 px-4">Currency</th>
                                     <th class="text-left py-3 px-4">Actions</th>
                                 </tr>
                             </thead>
@@ -1240,6 +1261,21 @@ app.get('/admin', (c) => {
                                 <!-- Will be populated by JS -->
                             </tbody>
                         </table>
+                    </div>
+                    
+                    <!-- Pagination Info -->
+                    <div class="mt-4 flex justify-between items-center text-sm" style="color: var(--text-secondary);">
+                        <div id="pricingResultInfo">Showing 0 of 0 entries</div>
+                        <div class="flex gap-2">
+                            <button id="pricingPrevBtn" class="px-3 py-1 rounded border hover:bg-gray-100 dark:hover:bg-gray-800" 
+                                    style="border-color: var(--border-color);" disabled>
+                                <i class="fas fa-chevron-left"></i> Prev
+                            </button>
+                            <button id="pricingNextBtn" class="px-3 py-1 rounded border hover:bg-gray-100 dark:hover:bg-gray-800" 
+                                    style="border-color: var(--border-color);" disabled>
+                                Next <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
