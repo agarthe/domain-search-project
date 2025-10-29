@@ -387,6 +387,10 @@ app.delete('/api/admin/registrars/:id', async (c) => {
     const db = c.env.DB
     const id = c.req.param('id')
 
+    // First delete all pricing records for this registrar
+    await db.prepare('DELETE FROM registrar_pricing WHERE registrar_id = ?').bind(id).run()
+    
+    // Then delete the registrar
     await db.prepare('DELETE FROM registrars WHERE id = ?').bind(id).run()
 
     return c.json({ success: true })
@@ -1017,12 +1021,16 @@ app.get('/', (c) => {
                     <div class="footer-social">
                         <h4 class="font-semibold text-sm mb-2">Connect</h4>
                         <div class="flex space-x-3">
-                            <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" 
-                               class="text-lg hover:text-blue-400 transition" style="color: var(--text-secondary);">
-                                <i class="fab fa-twitter"></i>
+                            <a href="https://x.com/inuname" target="_blank" rel="noopener noreferrer" 
+                               class="text-lg hover:text-blue-400 transition" style="color: var(--text-secondary);" title="X (Twitter)">
+                                <i class="fab fa-x-twitter"></i>
+                            </a>
+                            <a href="https://www.instagram.com/inu.name_/" target="_blank" rel="noopener noreferrer" 
+                               class="text-lg hover:text-pink-400 transition" style="color: var(--text-secondary);" title="Instagram">
+                                <i class="fab fa-instagram"></i>
                             </a>
                             <a href="mailto:info@inu.name" 
-                               class="text-lg hover:text-blue-600 transition" style="color: var(--text-secondary);">
+                               class="text-lg hover:text-blue-600 transition" style="color: var(--text-secondary);" title="Email">
                                 <i class="fas fa-envelope"></i>
                             </a>
                         </div>
@@ -1164,9 +1172,14 @@ app.get('/admin', (c) => {
             <div id="registrarsTab" class="tab-content">
                 <div class="panel-card rounded-lg p-6 mb-6">
                     <h2 class="text-xl font-bold mb-4">Manage Registrars</h2>
-                    <button id="addRegistrarBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                        <i class="fas fa-plus mr-2"></i>Add Registrar
-                    </button>
+                    <div class="flex gap-4">
+                        <button id="addRegistrarBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                            <i class="fas fa-plus mr-2"></i>Add Registrar
+                        </button>
+                        <button id="exportRegistrarsBtn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                            <i class="fas fa-download mr-2"></i>Export CSV
+                        </button>
+                    </div>
                 </div>
                 <div class="panel-card rounded-lg p-6">
                     <div class="overflow-x-auto">
@@ -1200,6 +1213,9 @@ app.get('/admin', (c) => {
                         </button>
                         <button id="bulkImportBtn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
                             <i class="fas fa-file-import mr-2"></i>Bulk Import
+                        </button>
+                        <button id="exportPricingBtn" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
+                            <i class="fas fa-download mr-2"></i>Export CSV
                         </button>
                     </div>
                 </div>
@@ -1253,7 +1269,7 @@ app.get('/admin', (c) => {
                                     <th class="text-left py-3 px-4">Currency</th>
                                     <th class="text-left py-3 px-4">Price</th>
                                     <th class="text-left py-3 px-4">Renewal</th>
-                                    <th class="text-left py-3 px-4">Transfer</th>
+                                    <th class="text-left py-3 px-4">Transfer In</th>
                                     <th class="text-left py-3 px-4">Actions</th>
                                 </tr>
                             </thead>

@@ -545,6 +545,67 @@ async function saveBrokerLink() {
 }
 
 // ============================================
+// CSV Export Functions
+// ============================================
+function exportToCSV(data, filename, headers) {
+  if (!data || data.length === 0) {
+    alert('No data to export');
+    return;
+  }
+  
+  // Create CSV header
+  const csvRows = [];
+  csvRows.push(headers.join(','));
+  
+  // Add data rows
+  data.forEach(item => {
+    const values = headers.map(header => {
+      const key = header.toLowerCase().replace(/ /g, '_');
+      let value = item[key];
+      
+      // Handle null/undefined
+      if (value === null || value === undefined) {
+        value = '';
+      }
+      
+      // Escape quotes and wrap in quotes if contains comma, quote or newline
+      value = String(value);
+      if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+        value = '"' + value.replace(/"/g, '""') + '"';
+      }
+      
+      return value;
+    });
+    csvRows.push(values.join(','));
+  });
+  
+  // Create blob and download
+  const csvString = csvRows.join('\n');
+  const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function exportRegistrars() {
+  const headers = ['id', 'name', 'website', 'affiliate_link_template', 'logo_url', 'is_active', 'display_order'];
+  const filename = `registrars_${new Date().toISOString().split('T')[0]}.csv`;
+  exportToCSV(registrarsData, filename, headers);
+}
+
+function exportPricing() {
+  const headers = ['id', 'registrar_id', 'registrar_name', 'tld', 'currency', 'price', 'renewal_price', 'transfer_price'];
+  const filename = `pricing_${new Date().toISOString().split('T')[0]}.csv`;
+  exportToCSV(pricingData, filename, headers);
+}
+
+// ============================================
 // Event Listeners
 // ============================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -583,6 +644,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Add buttons
   document.getElementById('addRegistrarBtn').addEventListener('click', addRegistrar);
   document.getElementById('addPricingBtn').addEventListener('click', addPricing);
+  
+  // Export buttons
+  document.getElementById('exportRegistrarsBtn').addEventListener('click', exportRegistrars);
+  document.getElementById('exportPricingBtn').addEventListener('click', exportPricing);
   
   // Settings buttons
   const saveBrokerLinkBtn = document.getElementById('saveBrokerLinkBtn');
