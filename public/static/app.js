@@ -125,6 +125,7 @@ const translations = {
     'domain.available': 'Available',
     'domain.taken': 'Taken',
     'domain.unknown': 'Unknown',
+    'domain.unknown.message': 'Domain status could not be determined. It may be available or taken.',
     'domain.register': 'Register at',
     'domain.whois': 'View WHOIS',
     'domain.details': 'View Details',
@@ -176,6 +177,7 @@ const translations = {
     'domain.available': '取得できます',
     'domain.taken': '取得できません',
     'domain.unknown': '不明',
+    'domain.unknown.message': 'ドメインの状態を確認できませんでした。取得可能または取得済みの可能性があります。',
     'domain.register': '登録先:',
     'domain.whois': 'WHOIS表示',
     'domain.details': '詳細表示',
@@ -324,19 +326,6 @@ async function searchDomains(query) {
     return;
   }
 
-  // If Japanese language, add .jp domain to search query
-  let searchQuery = query;
-  if (currentLang === 'ja') {
-    // Extract base domain name (first word before any dots)
-    const baseDomain = query.trim().split(/[\s,]+/)[0].split('.')[0];
-    
-    // Only add .jp if it's not already in the query and base domain is valid
-    if (baseDomain && !query.toLowerCase().includes('.jp')) {
-      searchQuery = `${query}, ${baseDomain}.jp`;
-      console.log('Japanese mode: adding .jp domain:', searchQuery);
-    }
-  }
-
   // Show loading state
   console.log('Showing loading state');
   const emptyState = document.getElementById('emptyState');
@@ -346,7 +335,11 @@ async function searchDomains(query) {
 
   try {
     console.log('Calling API...');
-    const response = await axios.post('/api/search', { query: searchQuery });
+    // Send language info to backend so it can add .jp if needed
+    const response = await axios.post('/api/search', { 
+      query,
+      language: currentLang 
+    });
     const data = response.data;
     console.log('API response:', data);
 
@@ -370,12 +363,8 @@ function displayResults(data) {
   console.log('Results list element:', resultsList);
   resultsList.innerHTML = '';
 
-  // Filter results: exclude unknown status and available domains without registrars
+  // Filter results: exclude available domains without registrars (but keep unknown)
   const filteredResults = data.results.filter(result => {
-    // Exclude unknown status
-    if (result.status === 'unknown') {
-      return false;
-    }
     // Exclude available domains without registrars
     if (result.status === 'available' && (!result.registrars || result.registrars.length === 0)) {
       return false;
@@ -384,13 +373,12 @@ function displayResults(data) {
   });
 
   console.log('Filtered results:', filteredResults.length, 'from', data.results.length);
+  console.log('TLDs in filtered results:', filteredResults.map(r => r.tld).join(' '));
 
   filteredResults.forEach((result, index) => {
     const card = createDomainCard(result, index);
-    console.log('Created card for:', result.domain);
     resultsList.appendChild(card);
   });
-  console.log('All cards appended');
 }
 
 function createDomainCard(result, index) {
@@ -761,7 +749,8 @@ function showDomainDetails(result) {
     content.innerHTML = `
       <div class="text-center py-8" style="color: var(--text-secondary);">
         <i class="fas fa-question-circle text-4xl mb-3"></i>
-        <p>Status information unavailable</p>
+        <p class="text-lg font-medium mb-2">${t('domain.unknown')}</p>
+        <p class="text-sm">${t('domain.unknown.message')}</p>
       </div>
     `;
   }

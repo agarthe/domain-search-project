@@ -14,6 +14,28 @@ import {
 
 const app = new Hono<{ Bindings: Bindings }>()
 
+/**
+ * Convert UTC datetime to JST (Japan Standard Time, UTC+9)
+ */
+function convertToJST(utcDateString: string): string {
+  if (!utcDateString) return '';
+  
+  const date = new Date(utcDateString + 'Z'); // Add Z to ensure it's treated as UTC
+  
+  // Add 9 hours for JST
+  date.setHours(date.getHours() + 9);
+  
+  // Format: YYYY-MM-DD HH:mm:ss
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const hours = String(date.getUTCHours()).padStart(2, '0');
+  const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+  const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+  
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
 // Enable CORS for all routes
 app.use('*', cors())
 
@@ -27,7 +49,7 @@ app.use('*', cors())
  */
 app.post('/api/search', async (c) => {
   try {
-    const { query } = await c.req.json<{ query: string }>()
+    const { query, language: requestLanguage } = await c.req.json<{ query: string; language?: string }>()
     
     if (!query || query.trim().length === 0) {
       return c.json({ error: 'Query is required' }, 400)
@@ -162,7 +184,8 @@ app.post('/api/search', async (c) => {
         try {
           const userIP = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'unknown';
           const userAgent = c.req.header('user-agent') || '';
-          const language = c.req.header('accept-language')?.startsWith('ja') ? 'ja' : 'en';
+          // Use request language instead of browser header
+          const language = requestLanguage || 'en';
           
           await db.prepare(`
             INSERT INTO search_history (domain, status, tld, search_query, language, user_ip, user_agent, searched_at)
@@ -175,11 +198,176 @@ app.post('/api/search', async (c) => {
       }
     }
 
+    // Re-check unknown status domains after 1 second
+    const unknownDomains = results.filter(r => r.status === 'unknown').map(r => r.domain);
+    if (unknownDomains.length > 0) {
+      // Wait 1 second before retry
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Re-check status using Domainr API
+      const retryStatusMap = await domainrStatus(unknownDomains, apiKeyRecord.api_key);
+      
+      for (const result of results) {
+        if (result.status === 'unknown') {
+          const retryDomainStatus = retryStatusMap.get(result.domain);
+          if (retryDomainStatus) {
+            let retryStatus = convertDomainrStatus(retryDomainStatus);
+            
+            // If still unknown, try DNS check one more time
+            if (retryStatus === 'unknown') {
+              retryStatus = await checkDomainAvailabilityDNS(result.domain);
+            }
+            
+            // Update result status
+            result.status = retryStatus;
+            
+            // Update cache with new status
+            await db.prepare(`
+              INSERT OR REPLACE INTO domain_cache (domain, is_available, last_checked)
+              VALUES (?, ?, datetime('now'))
+            `).bind(
+              result.domain,
+              retryStatus === 'available' ? 1 : retryStatus === 'taken' ? 0 : 2
+            ).run();
+            
+            // If status changed to available, get registrars
+            if (retryStatus === 'available' && !result.registrars) {
+              const tld = result.tld;
+              const domainRegistrars: RegistrarWithPrice[] = registrars.results
+                .filter((r: any) => r.tld === tld && r.price !== null)
+                .reduce((acc: RegistrarWithPrice[], curr: any) => {
+                  if (!acc.find(r => r.id === curr.id)) {
+                    acc.push({
+                      id: curr.id,
+                      name: curr.name,
+                      website: curr.website,
+                      affiliate_link_template: curr.affiliate_link_template,
+                      logo_url: curr.logo_url,
+                      is_active: curr.is_active,
+                      display_order: curr.display_order,
+                      created_at: curr.created_at,
+                      updated_at: curr.updated_at,
+                      price: curr.price,
+                      renewal_price: curr.renewal_price,
+                      transfer_price: curr.transfer_price,
+                      currency: curr.currency,
+                      register_url: curr.affiliate_link_template.replace('{domain}', result.domain)
+                    });
+                  }
+                  return acc;
+                }, [])
+                .slice(0, 10);
+              result.registrars = domainRegistrars;
+            }
+            
+            // Update search history with final status
+            try {
+              await db.prepare(`
+                UPDATE search_history 
+                SET status = ?
+                WHERE domain = ? AND search_query = ?
+                ORDER BY searched_at DESC
+                LIMIT 1
+              `).bind(retryStatus, result.domain, normalized).run();
+            } catch (err) {
+              console.error('Failed to update search history:', err);
+            }
+          }
+        }
+      }
+    }
+
     // Sort results: available first, then taken, then unknown
     results.sort((a, b) => {
       const statusOrder = { available: 0, taken: 1, unknown: 2 };
       return statusOrder[a.status] - statusOrder[b.status];
     });
+
+    // If Japanese language, add .jp domain to results
+    if (requestLanguage === 'ja') {
+      // Extract base domain name from query
+      const baseDomain = normalized.split(/[\s,]+/)[0].split('.')[0];
+      const jpDomain = `${baseDomain}.jp`;
+      
+      // Check if .jp domain is already in results
+      const hasJpDomain = results.some(r => r.domain === jpDomain);
+      
+      if (!hasJpDomain && baseDomain) {
+        // Check .jp domain status
+        try {
+          const jpStatusMap = await domainrStatus([jpDomain], apiKeyRecord.api_key);
+          const jpDomainStatus = jpStatusMap.get(jpDomain);
+          
+          if (jpDomainStatus) {
+            let jpStatus = convertDomainrStatus(jpDomainStatus);
+            
+            if (jpStatus === 'unknown') {
+              jpStatus = await checkDomainAvailabilityDNS(jpDomain);
+            }
+            
+            // Update cache
+            await db.prepare(`
+              INSERT OR REPLACE INTO domain_cache (domain, is_available, last_checked)
+              VALUES (?, ?, datetime('now'))
+            `).bind(
+              jpDomain,
+              jpStatus === 'available' ? 1 : jpStatus === 'taken' ? 0 : 2
+            ).run();
+            
+            // Get registrars for .jp TLD
+            const jpRegistrars: RegistrarWithPrice[] = registrars.results
+              .filter((r: any) => r.tld === '.jp' && r.price !== null)
+              .reduce((acc: RegistrarWithPrice[], curr: any) => {
+                if (!acc.find(r => r.id === curr.id)) {
+                  acc.push({
+                    id: curr.id,
+                    name: curr.name,
+                    website: curr.website,
+                    affiliate_link_template: curr.affiliate_link_template,
+                    logo_url: curr.logo_url,
+                    is_active: curr.is_active,
+                    display_order: curr.display_order,
+                    created_at: curr.created_at,
+                    updated_at: curr.updated_at,
+                    price: curr.price,
+                    renewal_price: curr.renewal_price,
+                    transfer_price: curr.transfer_price,
+                    currency: curr.currency,
+                    register_url: curr.affiliate_link_template.replace('{domain}', jpDomain)
+                  });
+                }
+                return acc;
+              }, [])
+              .slice(0, 10);
+            
+            // Add .jp domain to results
+            results.push({
+              domain: jpDomain,
+              tld: '.jp',
+              status: jpStatus,
+              registrars: jpStatus === 'available' ? jpRegistrars : undefined,
+              whois: jpStatus === 'taken' ? null : undefined,
+              cached: false
+            });
+            
+            // Save to search history
+            try {
+              const userIP = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'unknown';
+              const userAgent = c.req.header('user-agent') || '';
+              
+              await db.prepare(`
+                INSERT INTO search_history (domain, status, tld, search_query, language, user_ip, user_agent, searched_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+              `).bind(jpDomain, jpStatus, '.jp', normalized, 'ja', userIP.substring(0, 50), userAgent.substring(0, 200)).run();
+            } catch (err) {
+              console.error('Failed to save JP domain to history:', err);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to check .jp domain:', err);
+        }
+      }
+    }
 
     const response: SearchResponse = {
       query: normalized,
@@ -639,7 +827,13 @@ app.get('/api/admin/history/recent', async (c) => {
       LIMIT 100
     `).all()
 
-    return c.json(result.results)
+    // Convert searched_at to JST
+    const resultsWithJST = result.results.map((record: any) => ({
+      ...record,
+      searched_at: convertToJST(record.searched_at)
+    }))
+
+    return c.json(resultsWithJST)
   } catch (error) {
     return c.json({ error: 'Failed to fetch search history' }, 500)
   }
@@ -683,13 +877,18 @@ app.get('/api/admin/history/export/:month', async (c) => {
       ORDER BY searched_at DESC
     `).bind(month).all()
 
-    // Generate CSV
-    const headers = ['searched_at', 'domain', 'tld', 'status', 'search_query', 'language', 'user_ip'];
+    // Generate CSV with JST timezone
+    const headers = ['searched_at_jst', 'domain', 'tld', 'status', 'search_query', 'language', 'user_ip'];
     const csvRows = [headers.join(',')];
     
     result.results.forEach((row: any) => {
       const values = headers.map(header => {
-        let value = row[header];
+        let value: string;
+        if (header === 'searched_at_jst') {
+          value = convertToJST(row.searched_at);
+        } else {
+          value = row[header.replace('_jst', '')];
+        }
         if (value === null || value === undefined) value = '';
         value = String(value);
         if (value.includes(',') || value.includes('"') || value.includes('\n')) {

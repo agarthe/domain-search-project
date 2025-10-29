@@ -669,8 +669,8 @@ function renderRecentHistory(history) {
     const row = document.createElement('tr');
     row.style.borderBottom = '1px solid var(--border-color)';
     
-    const date = new Date(record.searched_at);
-    const formattedDate = date.toLocaleString();
+    // searched_at is already in JST format from backend (YYYY-MM-DD HH:mm:ss)
+    const formattedDate = record.searched_at;
     
     const statusColors = {
       'available': 'text-green-600 dark:text-green-400',
