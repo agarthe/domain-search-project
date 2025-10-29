@@ -998,11 +998,11 @@ app.get('/', (c) => {
                     <!-- Logo and About -->
                     <div class="footer-about">
                         <a href="/" class="block hover:opacity-80 transition">
-                            <div class="flex items-center space-x-2 mb-2">
+                            <div class="flex items-center space-x-2 mb-1">
                                 <i class="fas fa-dog text-blue-600"></i>
                                 <h3 class="font-bold">inu.name</h3>
                             </div>
-                            <p class="text-xs" style="color: var(--text-secondary);">
+                            <p class="text-xs ml-6" style="color: var(--text-secondary);">
                                 Fast domain search tool
                             </p>
                         </a>
@@ -1023,7 +1023,7 @@ app.get('/', (c) => {
                         <div class="flex space-x-3">
                             <a href="https://x.com/inuname" target="_blank" rel="noopener noreferrer" 
                                class="text-lg hover:text-blue-400 transition" style="color: var(--text-secondary);" title="X (Twitter)">
-                                <i class="fab fa-x-twitter"></i>
+                                <i class="fab fa-twitter"></i>
                             </a>
                             <a href="https://www.instagram.com/inu.name_/" target="_blank" rel="noopener noreferrer" 
                                class="text-lg hover:text-pink-400 transition" style="color: var(--text-secondary);" title="Instagram">
@@ -1176,8 +1176,30 @@ app.get('/admin', (c) => {
                         <button id="addRegistrarBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
                             <i class="fas fa-plus mr-2"></i>Add Registrar
                         </button>
+                        <button id="importRegistrarsBtn" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
+                            <i class="fas fa-upload mr-2"></i>Import CSV
+                        </button>
                         <button id="exportRegistrarsBtn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
                             <i class="fas fa-download mr-2"></i>Export CSV
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- CSV Import Panel for Registrars -->
+                <div id="importRegistrarsPanel" class="panel-card rounded-lg p-6 mb-6 hidden">
+                    <h3 class="text-lg font-bold mb-4">Import Registrars from CSV</h3>
+                    <p class="text-sm mb-4" style="color: var(--text-secondary);">
+                        Format: <code>name,website,affiliate_link_template,logo_url,is_active,display_order</code> (one per line)<br>
+                        Example: <code>Namecheap,https://namecheap.com,https://namecheap.com/aff,logo.png,1,1</code>
+                    </p>
+                    <textarea id="importRegistrarsData" class="w-full h-64 p-4 rounded border font-mono text-sm" style="background-color: var(--bg-primary); border-color: var(--border-color);" placeholder="Namecheap,https://namecheap.com,https://namecheap.com/aff,logo.png,1,1
+GoDaddy,https://godaddy.com,https://godaddy.com/aff,logo2.png,1,2"></textarea>
+                    <div class="flex gap-2 mt-4">
+                        <button id="importRegistrarsExecuteBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                            <i class="fas fa-upload mr-2"></i>Import
+                        </button>
+                        <button id="importRegistrarsCancelBtn" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
+                            Cancel
                         </button>
                     </div>
                 </div>
@@ -1211,22 +1233,30 @@ app.get('/admin', (c) => {
                         <button id="addPricingBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
                             <i class="fas fa-plus mr-2"></i>Add Pricing
                         </button>
-                        <button id="bulkImportBtn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-                            <i class="fas fa-file-import mr-2"></i>Bulk Import
+                        <button id="bulkImportBtn" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
+                            <i class="fas fa-upload mr-2"></i>Import CSV
                         </button>
-                        <button id="exportPricingBtn" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
+                        <button id="exportPricingBtn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
                             <i class="fas fa-download mr-2"></i>Export CSV
                         </button>
                     </div>
                 </div>
                 
-                <!-- Bulk Import Panel -->
+                <!-- CSV Import Panel for Pricing -->
                 <div id="bulkImportPanel" class="panel-card rounded-lg p-6 mb-6 hidden">
-                    <h3 class="text-lg font-bold mb-4">Bulk Import Pricing Data</h3>
+                    <h3 class="text-lg font-bold mb-4">Import Pricing Data from CSV</h3>
                     <p class="text-sm mb-4" style="color: var(--text-secondary);">
                         Format: <code>registrar_id,tld,currency,price,renewal_price,transfer_price</code> (one per line)<br>
                         Example: <code>1,.com,USD,10.99,12.99,15.99</code>
                     </p>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Upload CSV File (optional):</label>
+                        <input type="file" id="pricingCsvFile" accept=".csv" class="px-3 py-2 rounded border" 
+                               style="background-color: var(--bg-primary); border-color: var(--border-color);">
+                        <button id="loadCsvBtn" class="ml-2 px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">
+                            Load File
+                        </button>
+                    </div>
                     <textarea id="bulkImportData" class="w-full h-64 p-4 rounded border font-mono text-sm" style="background-color: var(--bg-primary); border-color: var(--border-color);" placeholder="1,.com,USD,10.99,12.99,15.99
 1,.net,USD,12.99,14.99,17.99
 2,.com,USD,9.99,11.99,14.99"></textarea>
@@ -1244,7 +1274,7 @@ app.get('/admin', (c) => {
                     <!-- Filters and Pagination Controls -->
                     <div class="mb-4 flex flex-wrap gap-4 items-center">
                         <div class="flex-1 min-w-[200px]">
-                            <input type="text" id="pricingSearchInput" placeholder="Search TLD or Registrar..." 
+                            <input type="text" id="pricingSearchInput" placeholder="Search TLD, Registrar or ID..." 
                                    class="w-full px-3 py-2 rounded border" 
                                    style="background-color: var(--bg-primary); border-color: var(--border-color);">
                         </div>

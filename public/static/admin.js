@@ -208,7 +208,8 @@ function filterPricing(searchTerm) {
   } else {
     filteredPricingData = pricingData.filter(price => 
       price.tld.toLowerCase().includes(term) || 
-      price.registrar_name.toLowerCase().includes(term)
+      price.registrar_name.toLowerCase().includes(term) ||
+      String(price.registrar_id).includes(term)
     );
   }
   currentPage = 1;
@@ -357,19 +358,55 @@ async function createPricing(data) {
 }
 
 // ============================================
-// Bulk Import Management
+// CSV Import Management
 // ============================================
 function showBulkImportPanel() {
   document.getElementById('bulkImportPanel').classList.remove('hidden');
   document.getElementById('addPricingBtn').disabled = true;
   document.getElementById('bulkImportBtn').disabled = true;
+  document.getElementById('exportPricingBtn').disabled = true;
 }
 
 function hideBulkImportPanel() {
   document.getElementById('bulkImportPanel').classList.add('hidden');
   document.getElementById('bulkImportData').value = '';
+  const fileInput = document.getElementById('pricingCsvFile');
+  if (fileInput) fileInput.value = '';
   document.getElementById('addPricingBtn').disabled = false;
   document.getElementById('bulkImportBtn').disabled = false;
+  document.getElementById('exportPricingBtn').disabled = false;
+}
+
+function showImportRegistrarsPanel() {
+  document.getElementById('importRegistrarsPanel').classList.remove('hidden');
+  document.getElementById('addRegistrarBtn').disabled = true;
+  document.getElementById('importRegistrarsBtn').disabled = true;
+  document.getElementById('exportRegistrarsBtn').disabled = true;
+}
+
+function hideImportRegistrarsPanel() {
+  document.getElementById('importRegistrarsPanel').classList.add('hidden');
+  document.getElementById('importRegistrarsData').value = '';
+  document.getElementById('addRegistrarBtn').disabled = false;
+  document.getElementById('importRegistrarsBtn').disabled = false;
+  document.getElementById('exportRegistrarsBtn').disabled = false;
+}
+
+function loadCsvFile() {
+  const fileInput = document.getElementById('pricingCsvFile');
+  const file = fileInput.files[0];
+  
+  if (!file) {
+    alert('Please select a CSV file');
+    return;
+  }
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const content = e.target.result;
+    document.getElementById('bulkImportData').value = content;
+  };
+  reader.readAsText(file);
 }
 
 async function executeBulkImport() {
@@ -432,6 +469,68 @@ async function executeBulkImport() {
   alert(`Import completed:\nSuccess: ${successCount}\nFailed: ${failCount}`);
   hideBulkImportPanel();
   loadPricing();
+}
+
+async function executeImportRegistrars() {
+  const data = document.getElementById('importRegistrarsData').value.trim();
+  if (!data) {
+    alert('Please enter registrar data');
+    return;
+  }
+
+  const lines = data.split('\n').filter(line => line.trim());
+  const registrarItems = [];
+  const errors = [];
+
+  lines.forEach((line, index) => {
+    const parts = line.split(',').map(p => p.trim());
+    if (parts.length < 2) {
+      errors.push(`Line ${index + 1}: Invalid format (need at least name and website)`);
+      return;
+    }
+
+    const [name, website, affiliateLink, logoUrl, isActive, displayOrder] = parts;
+    
+    if (!name || !website) {
+      errors.push(`Line ${index + 1}: Missing required fields (name, website)`);
+      return;
+    }
+
+    registrarItems.push({
+      name,
+      website,
+      affiliate_link_template: affiliateLink || website,
+      logo_url: logoUrl || '',
+      is_active: isActive ? parseInt(isActive) : 1,
+      display_order: displayOrder ? parseInt(displayOrder) : 0
+    });
+  });
+
+  if (errors.length > 0) {
+    alert('Errors found:\n' + errors.join('\n'));
+    return;
+  }
+
+  if (!confirm(`Import ${registrarItems.length} registrar records?`)) {
+    return;
+  }
+
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const item of registrarItems) {
+    try {
+      await axios.post('/api/admin/registrars', item);
+      successCount++;
+    } catch (error) {
+      console.error('Failed to import registrar:', item, error);
+      failCount++;
+    }
+  }
+
+  alert(`Import completed:\nSuccess: ${successCount}\nFailed: ${failCount}`);
+  hideImportRegistrarsPanel();
+  loadRegistrars();
 }
 
 // ============================================
@@ -655,10 +754,32 @@ document.addEventListener('DOMContentLoaded', () => {
     saveBrokerLinkBtn.addEventListener('click', saveBrokerLink);
   }
   
-  // Bulk import buttons
+  // CSV import buttons for Pricing
   document.getElementById('bulkImportBtn').addEventListener('click', showBulkImportPanel);
   document.getElementById('importExecuteBtn').addEventListener('click', executeBulkImport);
   document.getElementById('importCancelBtn').addEventListener('click', hideBulkImportPanel);
+  
+  // CSV file loader for Pricing
+  const loadCsvBtn = document.getElementById('loadCsvBtn');
+  if (loadCsvBtn) {
+    loadCsvBtn.addEventListener('click', loadCsvFile);
+  }
+  
+  // CSV import buttons for Registrars
+  const importRegistrarsBtn = document.getElementById('importRegistrarsBtn');
+  if (importRegistrarsBtn) {
+    importRegistrarsBtn.addEventListener('click', showImportRegistrarsPanel);
+  }
+  
+  const importRegistrarsExecuteBtn = document.getElementById('importRegistrarsExecuteBtn');
+  if (importRegistrarsExecuteBtn) {
+    importRegistrarsExecuteBtn.addEventListener('click', executeImportRegistrars);
+  }
+  
+  const importRegistrarsCancelBtn = document.getElementById('importRegistrarsCancelBtn');
+  if (importRegistrarsCancelBtn) {
+    importRegistrarsCancelBtn.addEventListener('click', hideImportRegistrarsPanel);
+  }
 
   // Pricing pagination and filtering
   const pricingSearchInput = document.getElementById('pricingSearchInput');
