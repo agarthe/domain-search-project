@@ -324,6 +324,19 @@ async function searchDomains(query) {
     return;
   }
 
+  // If Japanese language, add .jp domain to search query
+  let searchQuery = query;
+  if (currentLang === 'ja') {
+    // Extract base domain name (first word before any dots)
+    const baseDomain = query.trim().split(/[\s,]+/)[0].split('.')[0];
+    
+    // Only add .jp if it's not already in the query and base domain is valid
+    if (baseDomain && !query.toLowerCase().includes('.jp')) {
+      searchQuery = `${query}, ${baseDomain}.jp`;
+      console.log('Japanese mode: adding .jp domain:', searchQuery);
+    }
+  }
+
   // Show loading state
   console.log('Showing loading state');
   const emptyState = document.getElementById('emptyState');
@@ -333,7 +346,7 @@ async function searchDomains(query) {
 
   try {
     console.log('Calling API...');
-    const response = await axios.post('/api/search', { query });
+    const response = await axios.post('/api/search', { query: searchQuery });
     const data = response.data;
     console.log('API response:', data);
 

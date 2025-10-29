@@ -157,6 +157,21 @@ app.post('/api/search', async (c) => {
           whois: status === 'taken' ? null : undefined, // WHOIS can be fetched separately
           cached: false // Fresh from Domainr API
         })
+        
+        // Save to search history
+        try {
+          const userIP = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'unknown';
+          const userAgent = c.req.header('user-agent') || '';
+          const language = c.req.header('accept-language')?.startsWith('ja') ? 'ja' : 'en';
+          
+          await db.prepare(`
+            INSERT INTO search_history (domain, status, tld, search_query, language, user_ip, user_agent, searched_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+          `).bind(domain, status, tld, normalized, language, userIP.substring(0, 50), userAgent.substring(0, 200)).run();
+        } catch (err) {
+          console.error('Failed to save search history:', err);
+          // Don't fail the request if history save fails
+        }
       }
     }
 
@@ -607,6 +622,94 @@ app.get('/api/settings/broker-link', async (c) => {
     })
   } catch (error) {
     return c.json({ error: 'Failed to fetch broker link' }, 500)
+  }
+})
+
+/**
+ * GET /api/admin/history/recent
+ * Get recent 100 search history records
+ */
+app.get('/api/admin/history/recent', async (c) => {
+  try {
+    const db = c.env.DB
+    const result = await db.prepare(`
+      SELECT id, domain, status, tld, search_query, language, searched_at
+      FROM search_history
+      ORDER BY searched_at DESC
+      LIMIT 100
+    `).all()
+
+    return c.json(result.results)
+  } catch (error) {
+    return c.json({ error: 'Failed to fetch search history' }, 500)
+  }
+})
+
+/**
+ * GET /api/admin/history/months
+ * Get list of available months with search data
+ */
+app.get('/api/admin/history/months', async (c) => {
+  try {
+    const db = c.env.DB
+    const result = await db.prepare(`
+      SELECT DISTINCT strftime('%Y-%m', searched_at) as month,
+             COUNT(*) as count
+      FROM search_history
+      GROUP BY month
+      ORDER BY month DESC
+      LIMIT 24
+    `).all()
+
+    return c.json(result.results)
+  } catch (error) {
+    return c.json({ error: 'Failed to fetch month list' }, 500)
+  }
+})
+
+/**
+ * GET /api/admin/history/export/:month
+ * Export search history for a specific month as CSV
+ */
+app.get('/api/admin/history/export/:month', async (c) => {
+  try {
+    const db = c.env.DB
+    const month = c.req.param('month') // Format: YYYY-MM
+    
+    const result = await db.prepare(`
+      SELECT domain, status, tld, search_query, language, user_ip, searched_at
+      FROM search_history
+      WHERE strftime('%Y-%m', searched_at) = ?
+      ORDER BY searched_at DESC
+    `).bind(month).all()
+
+    // Generate CSV
+    const headers = ['searched_at', 'domain', 'tld', 'status', 'search_query', 'language', 'user_ip'];
+    const csvRows = [headers.join(',')];
+    
+    result.results.forEach((row: any) => {
+      const values = headers.map(header => {
+        let value = row[header];
+        if (value === null || value === undefined) value = '';
+        value = String(value);
+        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+          value = '"' + value.replace(/"/g, '""') + '"';
+        }
+        return value;
+      });
+      csvRows.push(values.join(','));
+    });
+
+    const csvContent = csvRows.join('\n');
+    
+    return new Response(csvContent, {
+      headers: {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': `attachment; filename="search_history_${month}.csv"`
+      }
+    });
+  } catch (error) {
+    return c.json({ error: 'Failed to export history' }, 500)
   }
 })
 
@@ -1165,6 +1268,9 @@ app.get('/admin', (c) => {
                     <button class="tab-btn px-4 py-2 font-semibold" style="border-bottom: 2px solid transparent;" data-tab="settings">
                         <i class="fas fa-cog mr-2"></i>Settings
                     </button>
+                    <button class="tab-btn px-4 py-2 font-semibold" style="border-bottom: 2px solid transparent;" data-tab="history">
+                        <i class="fas fa-history mr-2"></i>History
+                    </button>
                 </nav>
             </div>
 
@@ -1412,6 +1518,51 @@ GoDaddy,https://godaddy.com,https://godaddy.com/aff,logo2.png,1,2"></textarea>
                         </button>
                         
                         <div id="brokerLinkStatus" class="text-sm hidden"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div id="historyTab" class="tab-content hidden">
+                <div class="panel-card rounded-lg p-6 mb-6">
+                    <h2 class="text-xl font-bold mb-4">Search History</h2>
+                    <p class="text-sm mb-4" style="color: var(--text-secondary);">
+                        View search history and download monthly reports as CSV.
+                    </p>
+                </div>
+                
+                <!-- Monthly Export -->
+                <div class="panel-card rounded-lg p-6 mb-6">
+                    <h3 class="text-lg font-semibold mb-4">
+                        <i class="fas fa-calendar-alt mr-2 text-blue-600"></i>
+                        Monthly Export
+                    </h3>
+                    <div id="monthlyExportList" class="space-y-2">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+                
+                <!-- Recent History -->
+                <div class="panel-card rounded-lg p-6">
+                    <h3 class="text-lg font-semibold mb-4">
+                        <i class="fas fa-clock mr-2 text-blue-600"></i>
+                        Recent Searches (Latest 100)
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full" id="historyTable">
+                            <thead>
+                                <tr style="border-bottom: 1px solid var(--border-color);">
+                                    <th class="text-left py-3 px-4">Date & Time</th>
+                                    <th class="text-left py-3 px-4">Domain</th>
+                                    <th class="text-left py-3 px-4">TLD</th>
+                                    <th class="text-left py-3 px-4">Status</th>
+                                    <th class="text-left py-3 px-4">Language</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Will be populated by JS -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>

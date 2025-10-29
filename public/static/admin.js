@@ -644,6 +644,88 @@ async function saveBrokerLink() {
 }
 
 // ============================================
+// History Management
+// ============================================
+async function loadHistory() {
+  try {
+    // Load recent history
+    const recentResponse = await axios.get('/api/admin/history/recent');
+    renderRecentHistory(recentResponse.data);
+    
+    // Load available months
+    const monthsResponse = await axios.get('/api/admin/history/months');
+    renderMonthlyExport(monthsResponse.data);
+  } catch (error) {
+    console.error('Failed to load history:', error);
+    alert('Failed to load search history');
+  }
+}
+
+function renderRecentHistory(history) {
+  const tbody = document.querySelector('#historyTable tbody');
+  tbody.innerHTML = '';
+
+  history.forEach(record => {
+    const row = document.createElement('tr');
+    row.style.borderBottom = '1px solid var(--border-color)';
+    
+    const date = new Date(record.searched_at);
+    const formattedDate = date.toLocaleString();
+    
+    const statusColors = {
+      'available': 'text-green-600 dark:text-green-400',
+      'taken': 'text-red-600 dark:text-red-400',
+      'unknown': 'text-gray-600 dark:text-gray-400'
+    };
+    
+    row.innerHTML = `
+      <td class="py-3 px-4">${formattedDate}</td>
+      <td class="py-3 px-4 font-mono text-sm">${record.domain}</td>
+      <td class="py-3 px-4">${record.tld || '-'}</td>
+      <td class="py-3 px-4 ${statusColors[record.status] || ''}">${record.status}</td>
+      <td class="py-3 px-4">${record.language === 'ja' ? '🇯🇵 JA' : '🇺🇸 EN'}</td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+function renderMonthlyExport(months) {
+  const container = document.getElementById('monthlyExportList');
+  container.innerHTML = '';
+
+  if (months.length === 0) {
+    container.innerHTML = '<p class="text-sm" style="color: var(--text-secondary);">No search history available yet.</p>';
+    return;
+  }
+
+  months.forEach(month => {
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-between p-3 rounded border';
+    row.style.borderColor = 'var(--border-color)';
+    
+    const monthDate = new Date(month.month + '-01');
+    const monthName = monthDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+    
+    row.innerHTML = `
+      <div>
+        <span class="font-semibold">${monthName}</span>
+        <span class="text-sm ml-2" style="color: var(--text-secondary);">(${month.count} searches)</span>
+      </div>
+      <button 
+        onclick="downloadMonthlyCSV('${month.month}')"
+        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+        <i class="fas fa-download mr-2"></i>Download CSV
+      </button>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function downloadMonthlyCSV(month) {
+  window.location.href = `/api/admin/history/export/${month}`;
+}
+
+// ============================================
 // CSV Export Functions
 // ============================================
 function exportToCSV(data, filename, headers) {
@@ -736,6 +818,8 @@ document.addEventListener('DOMContentLoaded', () => {
         loadApiKeys();
       } else if (btn.dataset.tab === 'settings') {
         loadSettings();
+      } else if (btn.dataset.tab === 'history') {
+        loadHistory();
       }
     });
   });
@@ -831,3 +915,4 @@ window.deleteRegistrar = deleteRegistrar;
 window.editPricing = editPricing;
 window.deletePricing = deletePricing;
 window.editApiKey = editApiKey;
+window.downloadMonthlyCSV = downloadMonthlyCSV;
