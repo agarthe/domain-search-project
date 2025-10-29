@@ -3,7 +3,17 @@
 // ============================================
 // State Management
 // ============================================
-let currentLang = localStorage.getItem('lang') || 'en';
+// Detect browser language and set default
+function getDefaultLanguage() {
+  const savedLang = localStorage.getItem('lang');
+  if (savedLang) return savedLang;
+  
+  // Check browser language
+  const browserLang = navigator.language || navigator.userLanguage;
+  return browserLang.startsWith('ja') ? 'ja' : 'en';
+}
+
+let currentLang = getDefaultLanguage();
 let currentTheme = localStorage.getItem('theme') || 'light';
 let currentCurrency = localStorage.getItem('currency') || (currentLang === 'ja' ? 'JPY' : 'USD');
 let searchTimeout = null;

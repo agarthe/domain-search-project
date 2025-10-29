@@ -1,4 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <circle cx="50" cy="50" r="48" fill="#3b82f6"/>
-  <text x="50" y="50" font-size="60" text-anchor="middle" dominant-baseline="central">🐕</text>
+  <!-- White circle background -->
+  <circle cx="50" cy="50" r="48" fill="#ffffff"/>
+  
+  <!-- Dog nose (blue) -->
+  <g transform="translate(50, 50) scale(0.35)">
+    <!-- Main nose (top rounded part) -->
+    <ellipse cx="0" cy="-20" rx="45" ry="35" fill="#4A7FB8"/>
+    
+    <!-- Bottom curves (mustache area) -->
+    <path d="M -50 0 Q -50 30 -70 35 Q -50 32 -40 25 Q -30 20 0 15" 
+          fill="#4A7FB8" stroke="none"/>
+    <path d="M 50 0 Q 50 30 70 35 Q 50 32 40 25 Q 30 20 0 15" 
+          fill="#4A7FB8" stroke="none"/>
+  </g>
 </svg>
