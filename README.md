@@ -88,6 +88,9 @@ A modern, Domainr.com-inspired domain search and availability checker built with
 - Responsive mobile-friendly layout
 - Light/Dark mode toggle (persistent via localStorage)
 - English/Japanese language switching (persistent via localStorage)
+- **Auto-detect browser language** - Defaults to Japanese for ja-* browsers, English for others
+- **Persistent user preferences** - Theme, language, and currency saved across sessions
+- Simple dog nose favicon (SVG format)
 - Smooth animations and transitions
 - Modal WHOIS display
 
@@ -95,6 +98,18 @@ A modern, Domainr.com-inspired domain search and availability checker built with
 - Responsive design
 - localStorage for preferences
 - Optimized for mobile and desktop
+
+✅ **Search History & Analytics**
+- All searches logged to database with metadata (domain, status, TLD, language, IP, timestamp)
+- Admin panel History tab shows latest 100 searches
+- Monthly CSV export with JST timestamps
+- Automatic timezone conversion (UTC → JST/UTC+9)
+
+✅ **Smart Domain Status Checking**
+- Initial check via Domainr API
+- 1-second retry for Unknown status domains
+- DNS fallback check if still Unknown
+- Unknown domains displayed with clear messaging
 
 ### Functional Entry URIs
 
@@ -216,7 +231,9 @@ A modern, Domainr.com-inspired domain search and availability checker built with
 5. **Customize Interface**
    - Click moon/sun icon to toggle dark/light mode
    - Click language button to switch between EN/JP
-   - Settings are saved automatically
+   - Click currency button to switch between USD/JPY
+   - All settings (theme, language, currency) are saved automatically
+   - On first visit, language is auto-detected from browser settings
 
 ### For Administrators
 
@@ -346,7 +363,7 @@ npm run deploy:prod
 - **Sandbox**: ✅ Running at https://3000-iv1vxn8zmieucln7qg72m-18e660f9.sandbox.novita.ai
 - **Tech Stack**: Hono + TypeScript + TailwindCSS + D1 Database
 - **Backup**: ✅ Available at https://page.gensparksite.com/project_backups/domain-search-app-v1.tar.gz
-- **Last Updated**: 2025-10-26
+- **Last Updated**: 2025-10-29
 - **API Integration**: Domainr API via RapidAPI
 
 ## 🎯 Recommended Next Steps
