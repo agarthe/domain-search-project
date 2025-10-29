@@ -532,20 +532,42 @@ function showDomainDetails(result) {
           const sortBy = btn.dataset.sort;
           currentSortBy = sortBy;
           
+          // Helper function to normalize price to USD
+          const normalizePrice = (price, currency) => {
+            if (price === null || price === undefined) return Infinity;
+            return currency === 'JPY' ? price / USD_TO_JPY : price;
+          };
+          
           // Sort registrars (normalize to USD for comparison)
           sortedRegistrars.sort((a, b) => {
-            let aPrice = a[sortBy] || Infinity;
-            let bPrice = b[sortBy] || Infinity;
+            // Primary sort by selected field
+            let aPrice = normalizePrice(a[sortBy], a.currency);
+            let bPrice = normalizePrice(b[sortBy], b.currency);
             
-            // Convert to USD for fair comparison
-            if (a.currency === 'JPY' && aPrice !== Infinity) {
-              aPrice = aPrice / USD_TO_JPY;
-            }
-            if (b.currency === 'JPY' && bPrice !== Infinity) {
-              bPrice = bPrice / USD_TO_JPY;
+            if (aPrice !== bPrice) {
+              return aPrice - bPrice;
             }
             
-            return aPrice - bPrice;
+            // Secondary sort logic when primary prices are equal
+            if (sortBy === 'price') {
+              // If registration same, sort by renewal
+              let aRenewal = normalizePrice(a.renewal_price, a.currency);
+              let bRenewal = normalizePrice(b.renewal_price, b.currency);
+              if (aRenewal !== bRenewal) {
+                return aRenewal - bRenewal;
+              }
+              // If renewal same, sort by transfer
+              let aTransfer = normalizePrice(a.transfer_price, a.currency);
+              let bTransfer = normalizePrice(b.transfer_price, b.currency);
+              return aTransfer - bTransfer;
+            } else if (sortBy === 'renewal_price') {
+              // If renewal same, sort by transfer
+              let aTransfer = normalizePrice(a.transfer_price, a.currency);
+              let bTransfer = normalizePrice(b.transfer_price, b.currency);
+              return aTransfer - bTransfer;
+            }
+            
+            return 0;
           });
           
           renderRegistrars();
@@ -566,19 +588,35 @@ function showDomainDetails(result) {
       });
     }
     
-    // Initial sort by registration price (normalize to USD for comparison)
+    // Initial sort by registration price, then renewal, then transfer (normalize to USD for comparison)
     sortedRegistrars.sort((a, b) => {
-      let aPrice = a.price || Infinity;
-      let bPrice = b.price || Infinity;
+      // Helper function to normalize price to USD
+      const normalizePrice = (price, currency) => {
+        if (price === null || price === undefined) return Infinity;
+        return currency === 'JPY' ? price / USD_TO_JPY : price;
+      };
       
-      if (a.currency === 'JPY' && aPrice !== Infinity) {
-        aPrice = aPrice / USD_TO_JPY;
-      }
-      if (b.currency === 'JPY' && bPrice !== Infinity) {
-        bPrice = bPrice / USD_TO_JPY;
+      // Compare registration price
+      let aPrice = normalizePrice(a.price, a.currency);
+      let bPrice = normalizePrice(b.price, b.currency);
+      
+      if (aPrice !== bPrice) {
+        return aPrice - bPrice;
       }
       
-      return aPrice - bPrice;
+      // If registration price is same, compare renewal price
+      let aRenewal = normalizePrice(a.renewal_price, a.currency);
+      let bRenewal = normalizePrice(b.renewal_price, b.currency);
+      
+      if (aRenewal !== bRenewal) {
+        return aRenewal - bRenewal;
+      }
+      
+      // If renewal price is same, compare transfer price
+      let aTransfer = normalizePrice(a.transfer_price, a.currency);
+      let bTransfer = normalizePrice(b.transfer_price, b.currency);
+      
+      return aTransfer - bTransfer;
     });
     renderRegistrars();
     

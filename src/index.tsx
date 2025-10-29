@@ -998,11 +998,11 @@ app.get('/', (c) => {
                     <!-- Logo and About -->
                     <div class="footer-about">
                         <a href="/" class="block hover:opacity-80 transition">
-                            <div class="flex items-center space-x-2 mb-1">
+                            <div class="flex items-center space-x-2">
                                 <i class="fas fa-dog text-blue-600"></i>
                                 <h3 class="font-bold">inu.name</h3>
                             </div>
-                            <p class="text-xs ml-6" style="color: var(--text-secondary);">
+                            <p class="text-xs ml-6 mt-0" style="color: var(--text-secondary); margin-top: -2px;">
                                 Fast domain search tool
                             </p>
                         </a>
