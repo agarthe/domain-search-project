@@ -1608,7 +1608,22 @@ app.get('/', (c) => {
 /**
  * Admin page route
  */
-app.get('/admin', (c) => {
+app.get('/admin', async (c) => {
+  // Get TinyMCE API key from database
+  let tinymceApiKey = 'no-api-key'
+  try {
+    const db = c.env.DB
+    const result = await db.prepare(`
+      SELECT setting_value
+      FROM settings
+      WHERE setting_key = 'tinymce_api_key'
+    `).first() as { setting_value: string } | null
+    
+    tinymceApiKey = result?.setting_value || 'no-api-key'
+  } catch (error) {
+    console.error('Failed to get TinyMCE API key:', error)
+  }
+  
   return c.html(`
     <!DOCTYPE html>
     <html lang="en" class="light">
@@ -2203,6 +2218,7 @@ GoDaddy,https://godaddy.com,https://godaddy.com/aff,logo2.png,1,2"></textarea>
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+        <script src="https://cdn.tiny.cloud/1/${tinymceApiKey}/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
         <script src="/static/admin.js"></script>
     </body>
     </html>

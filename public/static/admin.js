@@ -958,39 +958,8 @@ document.addEventListener('DOMContentLoaded', () => {
 let contentPagesData = [];
 let currentEditingContentId = null;
 let tinyMCEInitialized = false;
-let tinyMCELoaded = false;
 let currentEditorMode = 'visual'; // 'visual' or 'html'
 let currentPreviewLang = 'en';
-
-// ============================================
-// Load TinyMCE Script Dynamically
-// ============================================
-async function loadTinyMCEScript() {
-  if (tinyMCELoaded) return;
-  
-  // Get API key from settings
-  let apiKey = 'no-api-key';
-  try {
-    const response = await axios.get('/api/settings/tinymce-key');
-    apiKey = response.data.api_key || 'no-api-key';
-  } catch (error) {
-    console.warn('Failed to load TinyMCE API key, using default');
-  }
-  
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = `https://cdn.tiny.cloud/1/${apiKey}/tinymce/6/tinymce.min.js`;
-    script.referrerPolicy = 'origin';
-    script.onload = () => {
-      tinyMCELoaded = true;
-      resolve();
-    };
-    script.onerror = () => {
-      reject(new Error('Failed to load TinyMCE script'));
-    };
-    document.head.appendChild(script);
-  });
-}
 
 async function loadContentPages() {
   try {
@@ -1038,17 +1007,6 @@ function renderContentPages() {
 
 async function editContentPage(id) {
   try {
-    // Load TinyMCE script if not already loaded
-    if (!tinyMCELoaded) {
-      try {
-        await loadTinyMCEScript();
-      } catch (error) {
-        console.error('Failed to load TinyMCE:', error);
-        alert('Failed to load rich text editor. Please check your TinyMCE API key in Settings.');
-        return;
-      }
-    }
-    
     const response = await axios.get(`/api/admin/content/${id}`);
     const page = response.data;
     
@@ -1061,9 +1019,15 @@ async function editContentPage(id) {
     
     document.getElementById('contentEditModal').classList.remove('hidden');
     
+    // Check if TinyMCE is loaded
+    if (typeof tinymce === 'undefined') {
+      alert('TinyMCE is not loaded. Please check your TinyMCE API key in Settings tab and reload the page.');
+      return;
+    }
+    
     // Initialize TinyMCE if not already done
     if (!tinyMCEInitialized) {
-      await initializeTinyMCE();
+      initializeTinyMCE();
     }
     
     // Switch to English tab by default
