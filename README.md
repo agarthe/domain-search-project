@@ -41,6 +41,21 @@ A modern, Domainr.com-inspired domain search and availability checker built with
 4. **Domain Cache** - Cached availability results
    - id, domain, is_available, whois_data, last_checked
 
+5. **Search History** - All domain search records
+   - id, domain, tld, status, language, ip_address, searched_at
+
+6. **Settings** - Application configuration
+   - id, setting_key, setting_value, created_at, updated_at
+
+7. **Content Pages** - Website content management
+   - id, page_key, title_en, title_ja, content_en, content_ja, is_active, updated_at
+
+8. **Content Versions** - Version history for content pages
+   - id, content_page_id, version_number, title_en, title_ja, content_en, content_ja, edited_by, created_at
+
+9. **Content Images** - Image upload tracking
+   - id, filename, original_filename, file_size, mime_type, url, uploaded_at
+
 ### Storage Services
 
 - **Cloudflare D1 Database**: SQLite-based relational database for all persistent data
@@ -81,6 +96,13 @@ A modern, Domainr.com-inspired domain search and availability checker built with
 - Registrar management (CRUD operations)
 - Pricing management for different TLDs
 - API key configuration
+- **Content pages management** with advanced editor
+  - Rich text editing with TinyMCE WYSIWYG editor
+  - HTML/Visual mode toggle for advanced users
+  - Live preview with EN/JA language switching
+  - Version history tracking with rollback capability
+  - Image upload support via URL insertion
+  - Tab-based interface for bilingual content editing
 - Clean, intuitive interface
 
 ✅ **UI/UX Features**
@@ -104,6 +126,18 @@ A modern, Domainr.com-inspired domain search and availability checker built with
 - Admin panel History tab shows latest 100 searches
 - Monthly CSV export with JST timestamps
 - Automatic timezone conversion (UTC → JST/UTC+9)
+
+✅ **Content Management System**
+- Footer content pages: How to Use, Company, Terms, Privacy
+- Full-screen modal display for content pages
+- Bilingual support (EN/JA) for all content
+- **Advanced content editor features:**
+  - **TinyMCE Rich Text Editor** - Professional WYSIWYG editing experience
+  - **HTML/Visual Mode Toggle** - Switch between visual editor and HTML source code
+  - **Live Preview** - Preview content with EN/JA language switching
+  - **Version History** - Track all changes with view and rollback capabilities
+  - **Image Upload** - Insert images via URL with automatic sizing
+  - **Tab-based Interface** - Seamless switching between English and Japanese editing
 
 ✅ **Smart Domain Status Checking**
 - Initial check via Domainr API
@@ -165,12 +199,31 @@ A modern, Domainr.com-inspired domain search and availability checker built with
     - Update API key
     - Body: `{ api_key, api_secret, base_url, is_active }`
 
+14. **GET /api/admin/content**
+    - Get all content pages
+
+15. **GET /api/admin/content/:id**
+    - Get specific content page by ID
+
+16. **PUT /api/admin/content/:id**
+    - Update content page (creates version history)
+    - Body: `{ title_en, title_ja, content_en, content_ja, is_active }`
+
+17. **GET /api/admin/content/:id/versions**
+    - Get version history for a content page
+
+18. **GET /api/admin/content/version/:version_id**
+    - Get specific version details for rollback
+
+19. **GET /api/content/:page_key**
+    - Get public content page (how_to_use, company, terms, privacy)
+
 #### Page Routes
 
-14. **GET /**
+20. **GET /**
     - Main search page
 
-15. **GET /admin**
+21. **GET /admin**
     - Admin panel
 
 ### Features Not Yet Implemented
@@ -257,6 +310,15 @@ A modern, Domainr.com-inspired domain search and availability checker built with
    - Update WHOIS API credentials (optional)
    - Enable/disable API services
    - Set base URLs for external APIs
+
+5. **Manage Content Pages**
+   - Edit How to Use, Company, Terms, and Privacy pages
+   - Use rich text editor (TinyMCE) for visual content editing
+   - Toggle between Visual and HTML editing modes
+   - Preview content in English or Japanese
+   - View version history and restore previous versions
+   - Insert images via URL
+   - All changes automatically tracked in version history
 
 ## 🛠️ Technology Stack
 
@@ -363,8 +425,13 @@ npm run deploy:prod
 - **Sandbox**: ✅ Running at https://3000-iv1vxn8zmieucln7qg72m-18e660f9.sandbox.novita.ai
 - **Tech Stack**: Hono + TypeScript + TailwindCSS + D1 Database
 - **Backup**: ✅ Available at https://page.gensparksite.com/project_backups/domain-search-app-v1.tar.gz
-- **Last Updated**: 2025-10-29
+- **Last Updated**: 2025-10-30
 - **API Integration**: Domainr API via RapidAPI
+- **Recent Updates**: 
+  - Added advanced content editor with TinyMCE
+  - Implemented version history and rollback
+  - Added HTML/Visual toggle and preview functionality
+  - Simplified footer layout to single-row design
 
 ## 🎯 Recommended Next Steps
 
