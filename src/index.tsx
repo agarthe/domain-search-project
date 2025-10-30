@@ -793,6 +793,27 @@ app.put('/api/admin/settings/:key', async (c) => {
 })
 
 /**
+ * GET /api/settings/tinymce-key
+ * Get TinyMCE API key for frontend (public endpoint for admin only)
+ */
+app.get('/api/settings/tinymce-key', async (c) => {
+  try {
+    const db = c.env.DB
+    const result = await db.prepare(`
+      SELECT setting_value
+      FROM settings
+      WHERE setting_key = 'tinymce_api_key'
+    `).first() as { setting_value: string } | null
+
+    return c.json({ 
+      api_key: result?.setting_value || 'no-api-key'
+    })
+  } catch (error) {
+    return c.json({ api_key: 'no-api-key' })
+  }
+})
+
+/**
  * GET /api/settings/broker-link
  * Get broker link for frontend (public endpoint)
  */
@@ -1904,6 +1925,42 @@ GoDaddy,https://godaddy.com,https://godaddy.com/aff,logo2.png,1,2"></textarea>
                     </p>
                 </div>
                 
+                <!-- TinyMCE API Key Setting -->
+                <div class="panel-card rounded-lg p-6 mb-6">
+                    <h3 class="text-lg font-semibold mb-3">
+                        <i class="fas fa-edit mr-2 text-purple-600"></i>
+                        TinyMCE API Key
+                    </h3>
+                    <p class="text-sm mb-4" style="color: var(--text-secondary);">
+                        Configure TinyMCE API key for the rich text editor in Content Pages management.
+                        Get your free API key from <a href="https://www.tiny.cloud/auth/signup/" target="_blank" class="text-blue-600 hover:underline">TinyMCE Cloud</a>.
+                    </p>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">API Key</label>
+                            <input 
+                                type="text" 
+                                id="tinymceApiKeyInput" 
+                                class="w-full px-3 py-2 rounded border font-mono" 
+                                style="background-color: var(--bg-primary); border-color: var(--border-color);"
+                                placeholder="your-tinymce-api-key"
+                            >
+                            <p class="text-xs mt-1" style="color: var(--text-secondary);">
+                                Free tier: 14-day trial, then keep using with "This domain is not registered" notice
+                            </p>
+                        </div>
+                        
+                        <button 
+                            id="saveTinymceKeyBtn" 
+                            class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
+                            <i class="fas fa-save mr-2"></i>Save API Key
+                        </button>
+                        
+                        <div id="tinymceKeyStatus" class="text-sm hidden"></div>
+                    </div>
+                </div>
+                
                 <!-- Domain Broker Link Setting -->
                 <div class="panel-card rounded-lg p-6">
                     <h3 class="text-lg font-semibold mb-3">
@@ -2146,7 +2203,6 @@ GoDaddy,https://godaddy.com,https://godaddy.com/aff,logo2.png,1,2"></textarea>
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
         <script src="/static/admin.js"></script>
     </body>
     </html>

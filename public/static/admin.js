@@ -609,6 +609,12 @@ async function loadSettings() {
     const response = await axios.get('/api/admin/settings');
     const settings = response.data;
     
+    // Find TinyMCE API key setting
+    const tinymceKeySetting = settings.find(s => s.setting_key === 'tinymce_api_key');
+    if (tinymceKeySetting) {
+      document.getElementById('tinymceApiKeyInput').value = tinymceKeySetting.setting_value || 'no-api-key';
+    }
+    
     // Find broker link setting
     const brokerLinkSetting = settings.find(s => s.setting_key === 'domain_broker_link');
     if (brokerLinkSetting) {
@@ -617,6 +623,36 @@ async function loadSettings() {
   } catch (error) {
     console.error('Failed to load settings:', error);
     alert('Failed to load settings');
+  }
+}
+
+async function saveTinymceKey() {
+  const input = document.getElementById('tinymceApiKeyInput');
+  const statusDiv = document.getElementById('tinymceKeyStatus');
+  const value = input.value.trim();
+  
+  if (!value) {
+    statusDiv.textContent = '✗ API key cannot be empty';
+    statusDiv.className = 'text-sm text-red-600';
+    statusDiv.classList.remove('hidden');
+    return;
+  }
+  
+  try {
+    await axios.put('/api/admin/settings/tinymce_api_key', { value });
+    
+    statusDiv.textContent = '✓ API key saved successfully! Please reload the page to apply changes.';
+    statusDiv.className = 'text-sm text-green-600';
+    statusDiv.classList.remove('hidden');
+    
+    setTimeout(() => {
+      statusDiv.classList.add('hidden');
+    }, 5000);
+  } catch (error) {
+    console.error('Failed to save TinyMCE API key:', error);
+    statusDiv.textContent = '✗ Failed to save API key';
+    statusDiv.className = 'text-sm text-red-600';
+    statusDiv.classList.remove('hidden');
   }
 }
 
@@ -835,6 +871,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('exportPricingBtn').addEventListener('click', exportPricing);
   
   // Settings buttons
+  const saveTinymceKeyBtn = document.getElementById('saveTinymceKeyBtn');
+  if (saveTinymceKeyBtn) {
+    saveTinymceKeyBtn.addEventListener('click', saveTinymceKey);
+  }
+  
   const saveBrokerLinkBtn = document.getElementById('saveBrokerLinkBtn');
   if (saveBrokerLinkBtn) {
     saveBrokerLinkBtn.addEventListener('click', saveBrokerLink);
@@ -917,8 +958,39 @@ document.addEventListener('DOMContentLoaded', () => {
 let contentPagesData = [];
 let currentEditingContentId = null;
 let tinyMCEInitialized = false;
+let tinyMCELoaded = false;
 let currentEditorMode = 'visual'; // 'visual' or 'html'
 let currentPreviewLang = 'en';
+
+// ============================================
+// Load TinyMCE Script Dynamically
+// ============================================
+async function loadTinyMCEScript() {
+  if (tinyMCELoaded) return;
+  
+  // Get API key from settings
+  let apiKey = 'no-api-key';
+  try {
+    const response = await axios.get('/api/settings/tinymce-key');
+    apiKey = response.data.api_key || 'no-api-key';
+  } catch (error) {
+    console.warn('Failed to load TinyMCE API key, using default');
+  }
+  
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = `https://cdn.tiny.cloud/1/${apiKey}/tinymce/6/tinymce.min.js`;
+    script.referrerPolicy = 'origin';
+    script.onload = () => {
+      tinyMCELoaded = true;
+      resolve();
+    };
+    script.onerror = () => {
+      reject(new Error('Failed to load TinyMCE script'));
+    };
+    document.head.appendChild(script);
+  });
+}
 
 async function loadContentPages() {
   try {
@@ -966,6 +1038,17 @@ function renderContentPages() {
 
 async function editContentPage(id) {
   try {
+    // Load TinyMCE script if not already loaded
+    if (!tinyMCELoaded) {
+      try {
+        await loadTinyMCEScript();
+      } catch (error) {
+        console.error('Failed to load TinyMCE:', error);
+        alert('Failed to load rich text editor. Please check your TinyMCE API key in Settings.');
+        return;
+      }
+    }
+    
     const response = await axios.get(`/api/admin/content/${id}`);
     const page = response.data;
     
@@ -980,7 +1063,7 @@ async function editContentPage(id) {
     
     // Initialize TinyMCE if not already done
     if (!tinyMCEInitialized) {
-      initializeTinyMCE();
+      await initializeTinyMCE();
     }
     
     // Switch to English tab by default
@@ -1117,6 +1200,7 @@ function toggleEditorMode(editorId) {
   } else {
     // Switch to Visual mode
     const content = document.getElementById(editorId).value;
+    
     tinymce.init({
       selector: `#${editorId}`,
       height: 500,
