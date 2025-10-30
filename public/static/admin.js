@@ -609,12 +609,6 @@ async function loadSettings() {
     const response = await axios.get('/api/admin/settings');
     const settings = response.data;
     
-    // Find TinyMCE API key setting
-    const tinymceKeySetting = settings.find(s => s.setting_key === 'tinymce_api_key');
-    if (tinymceKeySetting) {
-      document.getElementById('tinymceApiKeyInput').value = tinymceKeySetting.setting_value || 'no-api-key';
-    }
-    
     // Find broker link setting
     const brokerLinkSetting = settings.find(s => s.setting_key === 'domain_broker_link');
     if (brokerLinkSetting) {
@@ -623,36 +617,6 @@ async function loadSettings() {
   } catch (error) {
     console.error('Failed to load settings:', error);
     alert('Failed to load settings');
-  }
-}
-
-async function saveTinymceKey() {
-  const input = document.getElementById('tinymceApiKeyInput');
-  const statusDiv = document.getElementById('tinymceKeyStatus');
-  const value = input.value.trim();
-  
-  if (!value) {
-    statusDiv.textContent = '✗ API key cannot be empty';
-    statusDiv.className = 'text-sm text-red-600';
-    statusDiv.classList.remove('hidden');
-    return;
-  }
-  
-  try {
-    await axios.put('/api/admin/settings/tinymce_api_key', { value });
-    
-    statusDiv.textContent = '✓ API key saved successfully! Please reload the page to apply changes.';
-    statusDiv.className = 'text-sm text-green-600';
-    statusDiv.classList.remove('hidden');
-    
-    setTimeout(() => {
-      statusDiv.classList.add('hidden');
-    }, 5000);
-  } catch (error) {
-    console.error('Failed to save TinyMCE API key:', error);
-    statusDiv.textContent = '✗ Failed to save API key';
-    statusDiv.className = 'text-sm text-red-600';
-    statusDiv.classList.remove('hidden');
   }
 }
 
@@ -871,11 +835,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('exportPricingBtn').addEventListener('click', exportPricing);
   
   // Settings buttons
-  const saveTinymceKeyBtn = document.getElementById('saveTinymceKeyBtn');
-  if (saveTinymceKeyBtn) {
-    saveTinymceKeyBtn.addEventListener('click', saveTinymceKey);
-  }
-  
   const saveBrokerLinkBtn = document.getElementById('saveBrokerLinkBtn');
   if (saveBrokerLinkBtn) {
     saveBrokerLinkBtn.addEventListener('click', saveBrokerLink);
@@ -957,7 +916,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================
 let contentPagesData = [];
 let currentEditingContentId = null;
-let tinyMCEInitialized = false;
+let ckEditorEnInstance = null;
+let ckEditorJaInstance = null;
 let currentEditorMode = 'visual'; // 'visual' or 'html'
 let currentPreviewLang = 'en';
 
@@ -1019,15 +979,15 @@ async function editContentPage(id) {
     
     document.getElementById('contentEditModal').classList.remove('hidden');
     
-    // Check if TinyMCE is loaded
-    if (typeof tinymce === 'undefined') {
-      alert('TinyMCE is not loaded. Please check your TinyMCE API key in Settings tab and reload the page.');
+    // Check if CKEditor is loaded
+    if (typeof ClassicEditor === 'undefined') {
+      alert('CKEditor is not loaded. Please reload the page.');
       return;
     }
     
-    // Initialize TinyMCE if not already done
-    if (!tinyMCEInitialized) {
-      initializeTinyMCE();
+    // Initialize CKEditor if not already done
+    if (!ckEditorEnInstance) {
+      await initializeCKEditor();
     }
     
     // Switch to English tab by default
@@ -1044,16 +1004,16 @@ async function editContentPage(id) {
 async function saveContentPage() {
   if (!currentEditingContentId) return;
   
-  // Get content from TinyMCE if in visual mode
+  // Get content from CKEditor or textarea
   let contentEn, contentJa;
-  if (tinymce.get('contentEn')) {
-    contentEn = tinymce.get('contentEn').getContent();
+  if (ckEditorEnInstance && currentEditorMode === 'visual') {
+    contentEn = ckEditorEnInstance.getData();
   } else {
     contentEn = document.getElementById('contentEn').value;
   }
   
-  if (tinymce.get('contentJa')) {
-    contentJa = tinymce.get('contentJa').getContent();
+  if (ckEditorJaInstance && currentEditorMode === 'visual') {
+    contentJa = ckEditorJaInstance.getData();
   } else {
     contentJa = document.getElementById('contentJa').value;
   }
@@ -1070,10 +1030,15 @@ async function saveContentPage() {
     await axios.put(`/api/admin/content/${currentEditingContentId}`, data);
     document.getElementById('contentEditModal').classList.add('hidden');
     
-    // Destroy TinyMCE instances
-    if (tinymce.get('contentEn')) tinymce.get('contentEn').remove();
-    if (tinymce.get('contentJa')) tinymce.get('contentJa').remove();
-    tinyMCEInitialized = false;
+    // Destroy CKEditor instances
+    if (ckEditorEnInstance) {
+      await ckEditorEnInstance.destroy();
+      ckEditorEnInstance = null;
+    }
+    if (ckEditorJaInstance) {
+      await ckEditorJaInstance.destroy();
+      ckEditorJaInstance = null;
+    }
     
     loadContentPages();
     alert('Content page updated successfully');
@@ -1084,32 +1049,67 @@ async function saveContentPage() {
 }
 
 // ============================================
-// TinyMCE Initialization
+// CKEditor Initialization
 // ============================================
-function initializeTinyMCE() {
-  tinymce.init({
-    selector: '#contentEn, #contentJa',
-    height: 500,
-    menubar: true,
-    plugins: [
-      'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
-      'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-      'insertdatetime', 'media', 'table', 'help', 'wordcount'
-    ],
-    toolbar: 'undo redo | formatselect | bold italic underline strikethrough | ' +
-             'alignleft aligncenter alignright alignjustify | ' +
-             'bullist numlist outdent indent | link image | ' +
-             'forecolor backcolor | removeformat | code | help',
-    content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; line-height: 1.6; }',
-    branding: false,
-    promotion: false,
-    setup: function(editor) {
-      editor.on('init', function() {
-        console.log('TinyMCE initialized for: ' + editor.id);
-      });
-    }
-  });
-  tinyMCEInitialized = true;
+async function initializeCKEditor() {
+  try {
+    // Initialize English editor
+    ckEditorEnInstance = await ClassicEditor.create(document.querySelector('#contentEn'), {
+      toolbar: {
+        items: [
+          'heading', '|',
+          'bold', 'italic', 'underline', 'strikethrough', '|',
+          'link', 'imageUpload', 'blockQuote', '|',
+          'bulletedList', 'numberedList', '|',
+          'alignment', '|',
+          'undo', 'redo', '|',
+          'sourceEditing'
+        ]
+      },
+      heading: {
+        options: [
+          { model: 'paragraph', title: 'Paragraph', class: 'ck-heading_paragraph' },
+          { model: 'heading1', view: 'h1', title: 'Heading 1', class: 'ck-heading_heading1' },
+          { model: 'heading2', view: 'h2', title: 'Heading 2', class: 'ck-heading_heading2' },
+          { model: 'heading3', view: 'h3', title: 'Heading 3', class: 'ck-heading_heading3' }
+        ]
+      },
+      image: {
+        toolbar: ['imageTextAlternative', 'imageStyle:inline', 'imageStyle:block', 'imageStyle:side']
+      }
+    });
+    
+    // Initialize Japanese editor
+    ckEditorJaInstance = await ClassicEditor.create(document.querySelector('#contentJa'), {
+      toolbar: {
+        items: [
+          'heading', '|',
+          'bold', 'italic', 'underline', 'strikethrough', '|',
+          'link', 'imageUpload', 'blockQuote', '|',
+          'bulletedList', 'numberedList', '|',
+          'alignment', '|',
+          'undo', 'redo', '|',
+          'sourceEditing'
+        ]
+      },
+      heading: {
+        options: [
+          { model: 'paragraph', title: 'Paragraph', class: 'ck-heading_paragraph' },
+          { model: 'heading1', view: 'h1', title: 'Heading 1', class: 'ck-heading_heading1' },
+          { model: 'heading2', view: 'h2', title: 'Heading 2', class: 'ck-heading_heading2' },
+          { model: 'heading3', view: 'h3', title: 'Heading 3', class: 'ck-heading_heading3' }
+        ]
+      },
+      image: {
+        toolbar: ['imageTextAlternative', 'imageStyle:inline', 'imageStyle:block', 'imageStyle:side']
+      }
+    });
+    
+    console.log('CKEditor initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize CKEditor:', error);
+    throw error;
+  }
 }
 
 // ============================================
@@ -1148,45 +1148,69 @@ function switchEditorTab(tabName) {
 // ============================================
 // HTML/Visual Mode Toggle
 // ============================================
-function toggleEditorMode(editorId) {
-  const editor = tinymce.get(editorId);
-  if (!editor) return;
-  
-  const button = document.getElementById(`switchToHtml${editorId === 'contentEn' ? 'En' : 'Ja'}`);
+async function toggleEditorMode(editorId) {
+  const isEnglish = editorId === 'contentEn';
+  const editor = isEnglish ? ckEditorEnInstance : ckEditorJaInstance;
+  const button = document.getElementById(`switchToHtml${isEnglish ? 'En' : 'Ja'}`);
   
   if (currentEditorMode === 'visual') {
     // Switch to HTML mode
-    const content = editor.getContent();
-    editor.remove();
-    document.getElementById(editorId).value = content;
+    if (editor) {
+      const content = editor.getData();
+      await editor.destroy();
+      if (isEnglish) {
+        ckEditorEnInstance = null;
+      } else {
+        ckEditorJaInstance = null;
+      }
+      document.getElementById(editorId).value = content;
+    }
     button.innerHTML = '<i class="fas fa-eye"></i> Visual';
     currentEditorMode = 'html';
   } else {
     // Switch to Visual mode
     const content = document.getElementById(editorId).value;
     
-    tinymce.init({
-      selector: `#${editorId}`,
-      height: 500,
-      menubar: true,
-      plugins: [
-        'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
-        'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-        'insertdatetime', 'media', 'table', 'help', 'wordcount'
-      ],
-      toolbar: 'undo redo | formatselect | bold italic underline strikethrough | ' +
-               'alignleft aligncenter alignright alignjustify | ' +
-               'bullist numlist outdent indent | link image | ' +
-               'forecolor backcolor | removeformat | code | help',
-      content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; line-height: 1.6; }',
-      branding: false,
-      promotion: false,
-      init_instance_callback: function(editor) {
-        editor.setContent(content);
+    try {
+      const newEditor = await ClassicEditor.create(document.querySelector(`#${editorId}`), {
+        toolbar: {
+          items: [
+            'heading', '|',
+            'bold', 'italic', 'underline', 'strikethrough', '|',
+            'link', 'imageUpload', 'blockQuote', '|',
+            'bulletedList', 'numberedList', '|',
+            'alignment', '|',
+            'undo', 'redo', '|',
+            'sourceEditing'
+          ]
+        },
+        heading: {
+          options: [
+            { model: 'paragraph', title: 'Paragraph', class: 'ck-heading_paragraph' },
+            { model: 'heading1', view: 'h1', title: 'Heading 1', class: 'ck-heading_heading1' },
+            { model: 'heading2', view: 'h2', title: 'Heading 2', class: 'ck-heading_heading2' },
+            { model: 'heading3', view: 'h3', title: 'Heading 3', class: 'ck-heading_heading3' }
+          ]
+        },
+        image: {
+          toolbar: ['imageTextAlternative', 'imageStyle:inline', 'imageStyle:block', 'imageStyle:side']
+        }
+      });
+      
+      newEditor.setData(content);
+      
+      if (isEnglish) {
+        ckEditorEnInstance = newEditor;
+      } else {
+        ckEditorJaInstance = newEditor;
       }
-    });
-    button.innerHTML = '<i class="fas fa-code"></i> HTML';
-    currentEditorMode = 'visual';
+      
+      button.innerHTML = '<i class="fas fa-code"></i> HTML';
+      currentEditorMode = 'visual';
+    } catch (error) {
+      console.error('Failed to recreate CKEditor:', error);
+      alert('Failed to switch to visual mode');
+    }
   }
 }
 
@@ -1198,14 +1222,14 @@ function updatePreview() {
   const titleJa = document.getElementById('titleJa').value;
   
   let contentEn, contentJa;
-  if (tinymce.get('contentEn')) {
-    contentEn = tinymce.get('contentEn').getContent();
+  if (ckEditorEnInstance && currentEditorMode === 'visual') {
+    contentEn = ckEditorEnInstance.getData();
   } else {
     contentEn = document.getElementById('contentEn').value;
   }
   
-  if (tinymce.get('contentJa')) {
-    contentJa = tinymce.get('contentJa').getContent();
+  if (ckEditorJaInstance && currentEditorMode === 'visual') {
+    contentJa = ckEditorJaInstance.getData();
   } else {
     contentJa = document.getElementById('contentJa').value;
   }
@@ -1379,27 +1403,42 @@ function insertImageUrl() {
 // Content edit modal listeners
 document.addEventListener('DOMContentLoaded', () => {
   // Modal close handlers
-  document.getElementById('closeContentEdit')?.addEventListener('click', () => {
-    if (tinymce.get('contentEn')) tinymce.get('contentEn').remove();
-    if (tinymce.get('contentJa')) tinymce.get('contentJa').remove();
-    tinyMCEInitialized = false;
+  document.getElementById('closeContentEdit')?.addEventListener('click', async () => {
+    if (ckEditorEnInstance) {
+      await ckEditorEnInstance.destroy();
+      ckEditorEnInstance = null;
+    }
+    if (ckEditorJaInstance) {
+      await ckEditorJaInstance.destroy();
+      ckEditorJaInstance = null;
+    }
     document.getElementById('contentEditModal').classList.add('hidden');
   });
 
-  document.getElementById('cancelContentEdit')?.addEventListener('click', () => {
-    if (tinymce.get('contentEn')) tinymce.get('contentEn').remove();
-    if (tinymce.get('contentJa')) tinymce.get('contentJa').remove();
-    tinyMCEInitialized = false;
+  document.getElementById('cancelContentEdit')?.addEventListener('click', async () => {
+    if (ckEditorEnInstance) {
+      await ckEditorEnInstance.destroy();
+      ckEditorEnInstance = null;
+    }
+    if (ckEditorJaInstance) {
+      await ckEditorJaInstance.destroy();
+      ckEditorJaInstance = null;
+    }
     document.getElementById('contentEditModal').classList.add('hidden');
   });
 
   document.getElementById('saveContentEdit')?.addEventListener('click', saveContentPage);
 
-  document.getElementById('contentEditModal')?.addEventListener('click', (e) => {
+  document.getElementById('contentEditModal')?.addEventListener('click', async (e) => {
     if (e.target.id === 'contentEditModal') {
-      if (tinymce.get('contentEn')) tinymce.get('contentEn').remove();
-      if (tinymce.get('contentJa')) tinymce.get('contentJa').remove();
-      tinyMCEInitialized = false;
+      if (ckEditorEnInstance) {
+        await ckEditorEnInstance.destroy();
+        ckEditorEnInstance = null;
+      }
+      if (ckEditorJaInstance) {
+        await ckEditorJaInstance.destroy();
+        ckEditorJaInstance = null;
+      }
       document.getElementById('contentEditModal').classList.add('hidden');
     }
   });
