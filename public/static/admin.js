@@ -916,6 +916,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================
 let contentPagesData = [];
 let currentEditingContentId = null;
+let tinyMCEInitialized = false;
+let currentEditorMode = 'visual'; // 'visual' or 'html'
+let currentPreviewLang = 'en';
 
 async function loadContentPages() {
   try {
@@ -974,6 +977,17 @@ async function editContentPage(id) {
     document.getElementById('contentJa').value = page.content_ja || '';
     
     document.getElementById('contentEditModal').classList.remove('hidden');
+    
+    // Initialize TinyMCE if not already done
+    if (!tinyMCEInitialized) {
+      initializeTinyMCE();
+    }
+    
+    // Switch to English tab by default
+    switchEditorTab('english');
+    
+    // Load version history
+    loadVersionHistory(id);
   } catch (error) {
     console.error('Failed to load content page:', error);
     alert('Failed to load content page');
@@ -983,17 +997,37 @@ async function editContentPage(id) {
 async function saveContentPage() {
   if (!currentEditingContentId) return;
   
+  // Get content from TinyMCE if in visual mode
+  let contentEn, contentJa;
+  if (tinymce.get('contentEn')) {
+    contentEn = tinymce.get('contentEn').getContent();
+  } else {
+    contentEn = document.getElementById('contentEn').value;
+  }
+  
+  if (tinymce.get('contentJa')) {
+    contentJa = tinymce.get('contentJa').getContent();
+  } else {
+    contentJa = document.getElementById('contentJa').value;
+  }
+  
   const data = {
     title_en: document.getElementById('titleEn').value,
-    content_en: document.getElementById('contentEn').value,
+    content_en: contentEn,
     title_ja: document.getElementById('titleJa').value,
-    content_ja: document.getElementById('contentJa').value,
+    content_ja: contentJa,
     is_active: 1
   };
   
   try {
     await axios.put(`/api/admin/content/${currentEditingContentId}`, data);
     document.getElementById('contentEditModal').classList.add('hidden');
+    
+    // Destroy TinyMCE instances
+    if (tinymce.get('contentEn')) tinymce.get('contentEn').remove();
+    if (tinymce.get('contentJa')) tinymce.get('contentJa').remove();
+    tinyMCEInitialized = false;
+    
     loadContentPages();
     alert('Content page updated successfully');
   } catch (error) {
@@ -1002,21 +1036,348 @@ async function saveContentPage() {
   }
 }
 
-// Content edit modal listeners
-document.getElementById('closeContentEdit').addEventListener('click', () => {
-  document.getElementById('contentEditModal').classList.add('hidden');
-});
+// ============================================
+// TinyMCE Initialization
+// ============================================
+function initializeTinyMCE() {
+  tinymce.init({
+    selector: '#contentEn, #contentJa',
+    height: 500,
+    menubar: true,
+    plugins: [
+      'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+      'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+      'insertdatetime', 'media', 'table', 'help', 'wordcount'
+    ],
+    toolbar: 'undo redo | formatselect | bold italic underline strikethrough | ' +
+             'alignleft aligncenter alignright alignjustify | ' +
+             'bullist numlist outdent indent | link image | ' +
+             'forecolor backcolor | removeformat | code | help',
+    content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; line-height: 1.6; }',
+    branding: false,
+    promotion: false,
+    setup: function(editor) {
+      editor.on('init', function() {
+        console.log('TinyMCE initialized for: ' + editor.id);
+      });
+    }
+  });
+  tinyMCEInitialized = true;
+}
 
-document.getElementById('cancelContentEdit').addEventListener('click', () => {
-  document.getElementById('contentEditModal').classList.add('hidden');
-});
-
-document.getElementById('saveContentEdit').addEventListener('click', saveContentPage);
-
-document.getElementById('contentEditModal').addEventListener('click', (e) => {
-  if (e.target.id === 'contentEditModal') {
-    document.getElementById('contentEditModal').classList.add('hidden');
+// ============================================
+// Editor Tab Switching
+// ============================================
+function switchEditorTab(tabName) {
+  // Update tab buttons
+  document.getElementById('tabEnglish').classList.remove('bg-blue-600', 'text-white');
+  document.getElementById('tabEnglish').classList.add('bg-gray-200');
+  document.getElementById('tabJapanese').classList.remove('bg-blue-600', 'text-white');
+  document.getElementById('tabJapanese').classList.add('bg-gray-200');
+  document.getElementById('tabPreview').classList.remove('bg-blue-600', 'text-white');
+  document.getElementById('tabPreview').classList.add('bg-gray-200');
+  
+  // Update tab content visibility
+  document.getElementById('englishContent').classList.add('hidden');
+  document.getElementById('japaneseContent').classList.add('hidden');
+  document.getElementById('previewContent').classList.add('hidden');
+  
+  if (tabName === 'english') {
+    document.getElementById('tabEnglish').classList.remove('bg-gray-200');
+    document.getElementById('tabEnglish').classList.add('bg-blue-600', 'text-white');
+    document.getElementById('englishContent').classList.remove('hidden');
+  } else if (tabName === 'japanese') {
+    document.getElementById('tabJapanese').classList.remove('bg-gray-200');
+    document.getElementById('tabJapanese').classList.add('bg-blue-600', 'text-white');
+    document.getElementById('japaneseContent').classList.remove('hidden');
+  } else if (tabName === 'preview') {
+    document.getElementById('tabPreview').classList.remove('bg-gray-200');
+    document.getElementById('tabPreview').classList.add('bg-blue-600', 'text-white');
+    document.getElementById('previewContent').classList.remove('hidden');
+    updatePreview();
   }
+}
+
+// ============================================
+// HTML/Visual Mode Toggle
+// ============================================
+function toggleEditorMode(editorId) {
+  const editor = tinymce.get(editorId);
+  if (!editor) return;
+  
+  const button = document.getElementById(`switchToHtml${editorId === 'contentEn' ? 'En' : 'Ja'}`);
+  
+  if (currentEditorMode === 'visual') {
+    // Switch to HTML mode
+    const content = editor.getContent();
+    editor.remove();
+    document.getElementById(editorId).value = content;
+    button.innerHTML = '<i class="fas fa-eye"></i> Visual';
+    currentEditorMode = 'html';
+  } else {
+    // Switch to Visual mode
+    const content = document.getElementById(editorId).value;
+    tinymce.init({
+      selector: `#${editorId}`,
+      height: 500,
+      menubar: true,
+      plugins: [
+        'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+        'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+        'insertdatetime', 'media', 'table', 'help', 'wordcount'
+      ],
+      toolbar: 'undo redo | formatselect | bold italic underline strikethrough | ' +
+               'alignleft aligncenter alignright alignjustify | ' +
+               'bullist numlist outdent indent | link image | ' +
+               'forecolor backcolor | removeformat | code | help',
+      content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; line-height: 1.6; }',
+      branding: false,
+      promotion: false,
+      init_instance_callback: function(editor) {
+        editor.setContent(content);
+      }
+    });
+    button.innerHTML = '<i class="fas fa-code"></i> HTML';
+    currentEditorMode = 'visual';
+  }
+}
+
+// ============================================
+// Preview Functionality
+// ============================================
+function updatePreview() {
+  const titleEn = document.getElementById('titleEn').value;
+  const titleJa = document.getElementById('titleJa').value;
+  
+  let contentEn, contentJa;
+  if (tinymce.get('contentEn')) {
+    contentEn = tinymce.get('contentEn').getContent();
+  } else {
+    contentEn = document.getElementById('contentEn').value;
+  }
+  
+  if (tinymce.get('contentJa')) {
+    contentJa = tinymce.get('contentJa').getContent();
+  } else {
+    contentJa = document.getElementById('contentJa').value;
+  }
+  
+  const previewTitle = document.getElementById('previewTitle');
+  const previewBody = document.getElementById('previewBody');
+  
+  if (currentPreviewLang === 'en') {
+    previewTitle.textContent = titleEn || 'No title';
+    previewBody.innerHTML = contentEn || '<p>No content available.</p>';
+  } else {
+    previewTitle.textContent = titleJa || 'タイトルなし';
+    previewBody.innerHTML = contentJa || '<p>コンテンツがありません。</p>';
+  }
+}
+
+function switchPreviewLang(lang) {
+  currentPreviewLang = lang;
+  
+  document.getElementById('previewLangEn').classList.remove('bg-blue-600', 'text-white');
+  document.getElementById('previewLangEn').classList.add('bg-gray-200');
+  document.getElementById('previewLangJa').classList.remove('bg-blue-600', 'text-white');
+  document.getElementById('previewLangJa').classList.add('bg-gray-200');
+  
+  if (lang === 'en') {
+    document.getElementById('previewLangEn').classList.remove('bg-gray-200');
+    document.getElementById('previewLangEn').classList.add('bg-blue-600', 'text-white');
+  } else {
+    document.getElementById('previewLangJa').classList.remove('bg-gray-200');
+    document.getElementById('previewLangJa').classList.add('bg-blue-600', 'text-white');
+  }
+  
+  updatePreview();
+}
+
+// ============================================
+// Version History
+// ============================================
+async function loadVersionHistory(contentId) {
+  try {
+    const response = await axios.get(`/api/admin/content/${contentId}/versions`);
+    const versions = response.data;
+    renderVersionHistory(versions);
+  } catch (error) {
+    console.error('Failed to load version history:', error);
+    // Don't show alert if table doesn't exist yet
+    if (error.response && error.response.status !== 500) {
+      alert('Failed to load version history');
+    }
+  }
+}
+
+function renderVersionHistory(versions) {
+  const tbody = document.querySelector('#versionHistoryTable tbody');
+  tbody.innerHTML = '';
+  
+  if (!versions || versions.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="py-4 px-4 text-center" style="color: var(--text-secondary);">No version history available yet.</td></tr>';
+    return;
+  }
+  
+  versions.forEach(version => {
+    const row = document.createElement('tr');
+    row.style.borderBottom = '1px solid var(--border-color)';
+    row.innerHTML = `
+      <td class="py-3 px-4">v${version.version_number}</td>
+      <td class="py-3 px-4 text-sm" style="color: var(--text-secondary);">
+        ${new Date(version.created_at).toLocaleString()}
+      </td>
+      <td class="py-3 px-4 text-sm">${version.edited_by}</td>
+      <td class="py-3 px-4">
+        <button onclick="viewVersion(${version.id})" class="text-blue-600 hover:underline mr-3">
+          <i class="fas fa-eye"></i> View
+        </button>
+        <button onclick="restoreVersion(${version.id})" class="text-green-600 hover:underline">
+          <i class="fas fa-undo"></i> Restore
+        </button>
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+function showVersionHistory() {
+  document.getElementById('versionHistoryModal').classList.remove('hidden');
+}
+
+function closeVersionHistory() {
+  document.getElementById('versionHistoryModal').classList.add('hidden');
+}
+
+async function viewVersion(versionId) {
+  try {
+    const response = await axios.get(`/api/admin/content/version/${versionId}`);
+    const version = response.data;
+    
+    alert(`Version ${version.version_number}\n\n` +
+          `EN Title: ${version.title_en}\n` +
+          `JA Title: ${version.title_ja}\n\n` +
+          `Created: ${new Date(version.created_at).toLocaleString()}`);
+  } catch (error) {
+    console.error('Failed to view version:', error);
+    alert('Failed to load version details');
+  }
+}
+
+async function restoreVersion(versionId) {
+  if (!confirm('Are you sure you want to restore this version? Current content will be saved as a new version.')) {
+    return;
+  }
+  
+  try {
+    const response = await axios.get(`/api/admin/content/version/${versionId}`);
+    const version = response.data;
+    
+    // Update form fields
+    document.getElementById('titleEn').value = version.title_en;
+    document.getElementById('titleJa').value = version.title_ja;
+    
+    if (tinymce.get('contentEn')) {
+      tinymce.get('contentEn').setContent(version.content_en || '');
+    } else {
+      document.getElementById('contentEn').value = version.content_en || '';
+    }
+    
+    if (tinymce.get('contentJa')) {
+      tinymce.get('contentJa').setContent(version.content_ja || '');
+    } else {
+      document.getElementById('contentJa').value = version.content_ja || '';
+    }
+    
+    closeVersionHistory();
+    alert('Version restored. Please save to apply changes.');
+  } catch (error) {
+    console.error('Failed to restore version:', error);
+    alert('Failed to restore version');
+  }
+}
+
+// ============================================
+// Image Upload
+// ============================================
+function showImageUpload() {
+  document.getElementById('imageUploadModal').classList.remove('hidden');
+  document.getElementById('imageUrlInput').value = '';
+}
+
+function closeImageUpload() {
+  document.getElementById('imageUploadModal').classList.add('hidden');
+}
+
+function insertImageUrl() {
+  const url = document.getElementById('imageUrlInput').value.trim();
+  if (!url) {
+    alert('Please enter an image URL');
+    return;
+  }
+  
+  // Determine which editor is currently active
+  const englishTab = !document.getElementById('englishContent').classList.contains('hidden');
+  const editorId = englishTab ? 'contentEn' : 'contentJa';
+  
+  const editor = tinymce.get(editorId);
+  if (editor) {
+    editor.insertContent(`<img src="${url}" alt="Image" style="max-width: 100%; height: auto;" />`);
+  }
+  
+  closeImageUpload();
+}
+
+// Content edit modal listeners
+document.addEventListener('DOMContentLoaded', () => {
+  // Modal close handlers
+  document.getElementById('closeContentEdit')?.addEventListener('click', () => {
+    if (tinymce.get('contentEn')) tinymce.get('contentEn').remove();
+    if (tinymce.get('contentJa')) tinymce.get('contentJa').remove();
+    tinyMCEInitialized = false;
+    document.getElementById('contentEditModal').classList.add('hidden');
+  });
+
+  document.getElementById('cancelContentEdit')?.addEventListener('click', () => {
+    if (tinymce.get('contentEn')) tinymce.get('contentEn').remove();
+    if (tinymce.get('contentJa')) tinymce.get('contentJa').remove();
+    tinyMCEInitialized = false;
+    document.getElementById('contentEditModal').classList.add('hidden');
+  });
+
+  document.getElementById('saveContentEdit')?.addEventListener('click', saveContentPage);
+
+  document.getElementById('contentEditModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'contentEditModal') {
+      if (tinymce.get('contentEn')) tinymce.get('contentEn').remove();
+      if (tinymce.get('contentJa')) tinymce.get('contentJa').remove();
+      tinyMCEInitialized = false;
+      document.getElementById('contentEditModal').classList.add('hidden');
+    }
+  });
+  
+  // Tab switching
+  document.getElementById('tabEnglish')?.addEventListener('click', () => switchEditorTab('english'));
+  document.getElementById('tabJapanese')?.addEventListener('click', () => switchEditorTab('japanese'));
+  document.getElementById('tabPreview')?.addEventListener('click', () => switchEditorTab('preview'));
+  
+  // HTML/Visual toggle
+  document.getElementById('switchToHtmlEn')?.addEventListener('click', () => toggleEditorMode('contentEn'));
+  document.getElementById('switchToHtmlJa')?.addEventListener('click', () => toggleEditorMode('contentJa'));
+  
+  // Preview language switch
+  document.getElementById('previewLangEn')?.addEventListener('click', () => switchPreviewLang('en'));
+  document.getElementById('previewLangJa')?.addEventListener('click', () => switchPreviewLang('ja'));
+  
+  // Version history
+  document.getElementById('showVersionHistory')?.addEventListener('click', showVersionHistory);
+  document.getElementById('closeVersionHistory')?.addEventListener('click', closeVersionHistory);
+  
+  // Image upload
+  document.getElementById('uploadImageEn')?.addEventListener('click', showImageUpload);
+  document.getElementById('uploadImageJa')?.addEventListener('click', showImageUpload);
+  document.getElementById('closeImageUpload')?.addEventListener('click', closeImageUpload);
+  document.getElementById('insertImageUrl')?.addEventListener('click', insertImageUrl);
 });
 
 // Make functions available globally
@@ -1027,3 +1388,5 @@ window.deletePricing = deletePricing;
 window.editApiKey = editApiKey;
 window.downloadMonthlyCSV = downloadMonthlyCSV;
 window.editContentPage = editContentPage;
+window.viewVersion = viewVersion;
+window.restoreVersion = restoreVersion;

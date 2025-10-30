@@ -988,7 +988,7 @@ app.get('/api/admin/content/:id', async (c) => {
 
 /**
  * PUT /api/admin/content/:id
- * Update content page (admin)
+ * Update content page (admin) - with version history
  */
 app.put('/api/admin/content/:id', async (c) => {
   try {
@@ -996,6 +996,43 @@ app.put('/api/admin/content/:id', async (c) => {
     const id = c.req.param('id')
     const data = await c.req.json()
     
+    // Get current content for versioning
+    const currentContent = await db.prepare(`
+      SELECT * FROM content_pages WHERE id = ?
+    `).bind(id).first()
+    
+    if (currentContent) {
+      // Try to save version history (ignore errors if table doesn't exist)
+      try {
+        // Get next version number
+        const versionResult = await db.prepare(`
+          SELECT COALESCE(MAX(version_number), 0) + 1 as next_version
+          FROM content_versions
+          WHERE content_page_id = ?
+        `).bind(id).first()
+        
+        const nextVersion = versionResult?.next_version || 1
+        
+        // Save current content as a version
+        await db.prepare(`
+          INSERT INTO content_versions 
+          (content_page_id, version_number, title_en, title_ja, content_en, content_ja, edited_by)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          id,
+          nextVersion,
+          currentContent.title_en,
+          currentContent.title_ja,
+          currentContent.content_en,
+          currentContent.content_ja,
+          'admin'
+        ).run()
+      } catch (versionError) {
+        console.log('Version history not available yet:', versionError)
+      }
+    }
+    
+    // Update content
     await db.prepare(`
       UPDATE content_pages 
       SET title_en = ?, title_ja = ?, content_en = ?, content_ja = ?, 
@@ -1013,6 +1050,53 @@ app.put('/api/admin/content/:id', async (c) => {
     return c.json({ success: true })
   } catch (error) {
     return c.json({ error: 'Failed to update content page' }, 500)
+  }
+})
+
+/**
+ * GET /api/admin/content/:id/versions
+ * Get version history for a content page
+ */
+app.get('/api/admin/content/:id/versions', async (c) => {
+  try {
+    const db = c.env.DB
+    const id = c.req.param('id')
+    
+    const result = await db.prepare(`
+      SELECT id, version_number, title_en, title_ja, 
+             edited_by, created_at
+      FROM content_versions
+      WHERE content_page_id = ?
+      ORDER BY version_number DESC
+    `).bind(id).all()
+    
+    return c.json(result.results)
+  } catch (error) {
+    console.error('Version history error:', error)
+    return c.json({ error: 'Failed to fetch version history' }, 500)
+  }
+})
+
+/**
+ * GET /api/admin/content/version/:version_id
+ * Get specific version details
+ */
+app.get('/api/admin/content/version/:version_id', async (c) => {
+  try {
+    const db = c.env.DB
+    const versionId = c.req.param('version_id')
+    
+    const result = await db.prepare(`
+      SELECT * FROM content_versions WHERE id = ?
+    `).bind(versionId).first()
+    
+    if (!result) {
+      return c.json({ error: 'Version not found' }, 404)
+    }
+    
+    return c.json(result)
+  } catch (error) {
+    return c.json({ error: 'Failed to fetch version' }, 500)
   }
 })
 
@@ -1399,55 +1483,69 @@ app.get('/', (c) => {
         <!-- Footer -->
         <footer style="background-color: var(--bg-footer); border-top: 1px solid var(--border-color);">
             <div class="max-w-7xl mx-auto px-4 py-6">
-                <div class="footer-grid">
-                    <!-- Logo and About -->
-                    <div class="footer-about">
-                        <a href="/" class="block hover:opacity-80 transition">
-                            <div class="flex items-center space-x-2">
-                                <i class="fas fa-dog text-blue-600"></i>
-                                <h3 class="font-bold">inu.name</h3>
-                            </div>
-                            <p class="text-xs ml-6 mt-0" style="color: var(--text-secondary); margin-top: -2px;">
+                <!-- Footer Links - Single Row -->
+                <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mb-4">
+                    <!-- Logo and Title -->
+                    <a href="/" class="flex items-center space-x-2 hover:opacity-80 transition">
+                        <i class="fas fa-dog text-blue-600"></i>
+                        <div>
+                            <h3 class="font-bold text-sm">inu.name</h3>
+                            <p class="text-xs" style="color: var(--text-secondary); margin-top: -2px;">
                                 Fast domain search tool
                             </p>
-                        </a>
-                        <ul class="space-y-1 text-xs mt-3" style="color: var(--text-secondary);">
-                            <li><a href="javascript:void(0)" onclick="showContentPage('how_to_use')" class="hover:text-blue-600 transition" data-i18n="footer.how_to_use">How to Use</a></li>
-                        </ul>
-                    </div>
-                    
-                    <!-- Quick Links -->
-                    <div class="footer-links">
-                        <h4 class="font-semibold text-sm mb-2" data-i18n="footer.links_title">Company</h4>
-                        <ul class="space-y-1 text-xs" style="color: var(--text-secondary);">
-                            <li><a href="javascript:void(0)" onclick="showContentPage('company')" class="hover:text-blue-600 transition" data-i18n="footer.company">Company</a></li>
-                            <li><a href="javascript:void(0)" onclick="showContentPage('terms')" class="hover:text-blue-600 transition" data-i18n="footer.terms">Terms</a></li>
-                            <li><a href="javascript:void(0)" onclick="showContentPage('privacy')" class="hover:text-blue-600 transition" data-i18n="footer.privacy">Privacy</a></li>
-                        </ul>
-                    </div>
-                    
-                    <!-- Social -->
-                    <div class="footer-social">
-                        <h4 class="font-semibold text-sm mb-2" data-i18n="footer.connect">Connect</h4>
-                        <div class="flex space-x-3">
-                            <a href="https://x.com/inuname" target="_blank" rel="noopener noreferrer" 
-                               class="text-lg hover:text-blue-400 transition" style="color: var(--text-secondary);" title="X (Twitter)">
-                                <i class="fab fa-twitter"></i>
-                            </a>
-                            <a href="https://www.instagram.com/inu.name_/" target="_blank" rel="noopener noreferrer" 
-                               class="text-lg hover:text-pink-400 transition" style="color: var(--text-secondary);" title="Instagram">
-                                <i class="fab fa-instagram"></i>
-                            </a>
-                            <a href="mailto:info@inu.name" 
-                               class="text-lg hover:text-blue-600 transition" style="color: var(--text-secondary);" title="Email">
-                                <i class="fas fa-envelope"></i>
-                            </a>
                         </div>
-                    </div>
+                    </a>
+                    
+                    <span style="color: var(--border-color);">|</span>
+                    
+                    <!-- Content Links -->
+                    <a href="javascript:void(0)" onclick="showContentPage('how_to_use')" 
+                       class="text-xs hover:text-blue-600 transition" 
+                       style="color: var(--text-secondary);"
+                       data-i18n="footer.how_to_use">How to Use</a>
+                    
+                    <a href="javascript:void(0)" onclick="showContentPage('company')" 
+                       class="text-xs hover:text-blue-600 transition" 
+                       style="color: var(--text-secondary);"
+                       data-i18n="footer.company">Company</a>
+                    
+                    <a href="javascript:void(0)" onclick="showContentPage('terms')" 
+                       class="text-xs hover:text-blue-600 transition" 
+                       style="color: var(--text-secondary);"
+                       data-i18n="footer.terms">Terms</a>
+                    
+                    <a href="javascript:void(0)" onclick="showContentPage('privacy')" 
+                       class="text-xs hover:text-blue-600 transition" 
+                       style="color: var(--text-secondary);"
+                       data-i18n="footer.privacy">Privacy</a>
+                    
+                    <span style="color: var(--border-color);">|</span>
+                    
+                    <!-- Social Links -->
+                    <a href="https://x.com/inuname" target="_blank" rel="noopener noreferrer" 
+                       class="text-base hover:text-blue-400 transition" 
+                       style="color: var(--text-secondary);" 
+                       title="X (Twitter)">
+                        <i class="fab fa-twitter"></i>
+                    </a>
+                    
+                    <a href="https://www.instagram.com/inu.name_/" target="_blank" rel="noopener noreferrer" 
+                       class="text-base hover:text-pink-400 transition" 
+                       style="color: var(--text-secondary);" 
+                       title="Instagram">
+                        <i class="fab fa-instagram"></i>
+                    </a>
+                    
+                    <a href="mailto:info@inu.name" 
+                       class="text-base hover:text-blue-600 transition" 
+                       style="color: var(--text-secondary);" 
+                       title="Email">
+                        <i class="fas fa-envelope"></i>
+                    </a>
                 </div>
                 
                 <!-- Copyright -->
-                <div class="pt-4 mt-4 border-t text-center text-xs" style="border-color: var(--border-color); color: var(--text-secondary);">
+                <div class="text-center text-xs" style="color: var(--text-secondary);">
                     <p>&copy; <span id="currentYear">2025</span> Agarthe LLC — Made with ❤️🤖 in Tokyo</p>
                 </div>
             </div>
@@ -1918,37 +2016,137 @@ GoDaddy,https://godaddy.com,https://godaddy.com/aff,logo2.png,1,2"></textarea>
         
         <!-- Content Page Edit Modal -->
         <div id="contentEditModal" class="modal-overlay hidden">
-            <div class="modal-content" style="max-width: 1000px;">
+            <div class="modal-content" style="max-width: 1200px; max-height: 90vh; overflow-y: auto;">
                 <div class="flex justify-between items-center mb-4 sticky top-0 z-10 pb-4" style="background-color: var(--bg-primary); border-bottom: 1px solid var(--border-color);">
                     <h3 class="text-xl font-bold" id="contentEditTitle">Edit Content Page</h3>
-                    <button id="closeContentEdit" class="text-2xl hover:opacity-70 px-2">&times;</button>
+                    <div class="flex gap-2 items-center">
+                        <button id="viewHistoryBtn" class="px-3 py-1 text-sm rounded bg-gray-200 hover:bg-gray-300">
+                            <i class="fas fa-history mr-1"></i>History
+                        </button>
+                        <button id="closeContentEdit" class="text-2xl hover:opacity-70 px-2">&times;</button>
+                    </div>
                 </div>
                 <div id="contentEditBody">
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold mb-2">English Title</label>
-                        <input type="text" id="titleEn" class="w-full px-3 py-2 border rounded" style="border-color: var(--border-color); background-color: var(--bg-primary); color: var(--text-primary);">
+                    <!-- Tab Switcher -->
+                    <div class="mb-4 border-b" style="border-color: var(--border-color);">
+                        <div class="flex gap-2">
+                            <button id="tabEnglish" class="px-4 py-2 font-semibold border-b-2 border-blue-600 text-blue-600">
+                                English
+                            </button>
+                            <button id="tabJapanese" class="px-4 py-2 font-semibold border-b-2" style="border-bottom-color: transparent; color: var(--text-secondary);">
+                                日本語
+                            </button>
+                            <button id="tabPreview" class="px-4 py-2 font-semibold border-b-2" style="border-bottom-color: transparent; color: var(--text-secondary);">
+                                <i class="fas fa-eye mr-1"></i>Preview
+                            </button>
+                        </div>
                     </div>
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold mb-2">English Content (HTML)</label>
-                        <textarea id="contentEn" rows="10" class="w-full px-3 py-2 border rounded font-mono text-sm" style="border-color: var(--border-color); background-color: var(--bg-primary); color: var(--text-primary);"></textarea>
+                    
+                    <!-- English Tab -->
+                    <div id="englishContent" class="content-edit-tab">
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold mb-2">Title</label>
+                            <input type="text" id="titleEn" class="w-full px-3 py-2 border rounded" style="border-color: var(--border-color); background-color: var(--bg-primary); color: var(--text-primary);">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold mb-2 flex justify-between items-center">
+                                <span>Content</span>
+                                <div class="flex gap-2">
+                                    <button id="uploadImageEn" class="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
+                                        <i class="fas fa-image mr-1"></i>Upload Image
+                                    </button>
+                                    <button id="switchToHtmlEn" class="text-xs px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                        <i class="fas fa-code mr-1"></i>HTML
+                                    </button>
+                                </div>
+                            </label>
+                            <textarea id="contentEn" rows="15" class="w-full"></textarea>
+                        </div>
                     </div>
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold mb-2">Japanese Title (日本語タイトル)</label>
-                        <input type="text" id="titleJa" class="w-full px-3 py-2 border rounded" style="border-color: var(--border-color); background-color: var(--bg-primary); color: var(--text-primary);">
+                    
+                    <!-- Japanese Tab -->
+                    <div id="japaneseContent" class="content-edit-tab hidden">
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold mb-2">タイトル</label>
+                            <input type="text" id="titleJa" class="w-full px-3 py-2 border rounded" style="border-color: var(--border-color); background-color: var(--bg-primary); color: var(--text-primary);">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold mb-2 flex justify-between items-center">
+                                <span>コンテンツ</span>
+                                <div class="flex gap-2">
+                                    <button id="uploadImageJa" class="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
+                                        <i class="fas fa-image mr-1"></i>画像アップロード
+                                    </button>
+                                    <button id="switchToHtmlJa" class="text-xs px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                        <i class="fas fa-code mr-1"></i>HTML
+                                    </button>
+                                </div>
+                            </label>
+                            <textarea id="contentJa" rows="15" class="w-full"></textarea>
+                        </div>
                     </div>
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold mb-2">Japanese Content (日本語コンテンツ HTML)</label>
-                        <textarea id="contentJa" rows="10" class="w-full px-3 py-2 border rounded font-mono text-sm" style="border-color: var(--border-color); background-color: var(--bg-primary); color: var(--text-primary);"></textarea>
+                    
+                    <!-- Preview Tab -->
+                    <div id="previewContent" class="content-edit-tab hidden">
+                        <div class="mb-4">
+                            <div class="flex gap-2 mb-2">
+                                <button id="previewEn" class="px-3 py-1 text-sm bg-blue-600 text-white rounded">English</button>
+                                <button id="previewJa" class="px-3 py-1 text-sm bg-gray-200 rounded">日本語</button>
+                            </div>
+                        </div>
+                        <div class="border rounded p-4 prose prose-sm max-w-none" style="border-color: var(--border-color); background-color: var(--bg-secondary);">
+                            <h2 id="previewTitle">Title</h2>
+                            <div id="previewBody">Content will appear here...</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end gap-2 mt-4 pt-4" style="border-top: 1px solid var(--border-color);">
+                        <button id="cancelContentEdit" class="px-4 py-2 rounded" style="background-color: var(--bg-secondary);">Cancel</button>
+                        <button id="saveContentEdit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                            <i class="fas fa-save mr-1"></i>Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Version History Modal -->
+        <div id="versionHistoryModal" class="modal-overlay hidden">
+            <div class="modal-content" style="max-width: 900px;">
+                <div class="flex justify-between items-center mb-4 pb-4" style="border-bottom: 1px solid var(--border-color);">
+                    <h3 class="text-xl font-bold">Version History</h3>
+                    <button id="closeVersionHistory" class="text-2xl hover:opacity-70 px-2">&times;</button>
+                </div>
+                <div id="versionHistoryList" class="space-y-2">
+                    <!-- Will be populated by JS -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Image Upload Modal -->
+        <div id="imageUploadModal" class="modal-overlay hidden">
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="flex justify-between items-center mb-4 pb-4" style="border-bottom: 1px solid var(--border-color);">
+                    <h3 class="text-xl font-bold">Upload Image</h3>
+                    <button id="closeImageUpload" class="text-2xl hover:opacity-70 px-2">&times;</button>
+                </div>
+                <div>
+                    <input type="file" id="imageFileInput" accept="image/*" class="mb-4">
+                    <div id="imagePreviewContainer" class="mb-4 hidden">
+                        <img id="imagePreview" class="max-w-full h-auto border rounded" style="max-height: 300px;">
                     </div>
                     <div class="flex justify-end gap-2">
-                        <button id="cancelContentEdit" class="px-4 py-2 rounded" style="background-color: var(--bg-secondary);">Cancel</button>
-                        <button id="saveContentEdit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save Changes</button>
+                        <button id="cancelImageUpload" class="px-4 py-2 rounded" style="background-color: var(--bg-secondary);">Cancel</button>
+                        <button id="confirmImageUpload" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                            <i class="fas fa-upload mr-1"></i>Upload
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+        <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
         <script src="/static/admin.js"></script>
     </body>
     </html>
