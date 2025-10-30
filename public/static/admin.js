@@ -965,8 +965,36 @@ function renderContentPages() {
   });
 }
 
+// Wait for CKEditor to be loaded
+function waitForCKEditor() {
+  return new Promise((resolve, reject) => {
+    let attempts = 0;
+    const maxAttempts = 50; // 5 seconds max
+    
+    const checkInterval = setInterval(() => {
+      attempts++;
+      
+      if (typeof ClassicEditor !== 'undefined') {
+        clearInterval(checkInterval);
+        resolve();
+      } else if (attempts >= maxAttempts) {
+        clearInterval(checkInterval);
+        reject(new Error('CKEditor failed to load'));
+      }
+    }, 100);
+  });
+}
+
 async function editContentPage(id) {
   try {
+    // Wait for CKEditor to load
+    try {
+      await waitForCKEditor();
+    } catch (error) {
+      alert('CKEditor failed to load. Please reload the page and try again.');
+      return;
+    }
+    
     const response = await axios.get(`/api/admin/content/${id}`);
     const page = response.data;
     
@@ -978,12 +1006,6 @@ async function editContentPage(id) {
     document.getElementById('contentJa').value = page.content_ja || '';
     
     document.getElementById('contentEditModal').classList.remove('hidden');
-    
-    // Check if CKEditor is loaded
-    if (typeof ClassicEditor === 'undefined') {
-      alert('CKEditor is not loaded. Please reload the page.');
-      return;
-    }
     
     // Initialize CKEditor if not already done
     if (!ckEditorEnInstance) {
@@ -1053,8 +1075,22 @@ async function saveContentPage() {
 // ============================================
 async function initializeCKEditor() {
   try {
+    console.log('Initializing CKEditor...');
+    
+    // Check if elements exist
+    const contentEnElement = document.querySelector('#contentEn');
+    const contentJaElement = document.querySelector('#contentJa');
+    
+    console.log('contentEn element:', contentEnElement);
+    console.log('contentJa element:', contentJaElement);
+    
+    if (!contentEnElement || !contentJaElement) {
+      throw new Error('Textarea elements not found');
+    }
+    
     // Initialize English editor
-    ckEditorEnInstance = await ClassicEditor.create(document.querySelector('#contentEn'), {
+    console.log('Creating English editor...');
+    ckEditorEnInstance = await ClassicEditor.create(contentEnElement, {
       toolbar: {
         items: [
           'heading', '|',
@@ -1078,9 +1114,11 @@ async function initializeCKEditor() {
         toolbar: ['imageTextAlternative', 'imageStyle:inline', 'imageStyle:block', 'imageStyle:side']
       }
     });
+    console.log('English editor created');
     
     // Initialize Japanese editor
-    ckEditorJaInstance = await ClassicEditor.create(document.querySelector('#contentJa'), {
+    console.log('Creating Japanese editor...');
+    ckEditorJaInstance = await ClassicEditor.create(contentJaElement, {
       toolbar: {
         items: [
           'heading', '|',
@@ -1104,10 +1142,12 @@ async function initializeCKEditor() {
         toolbar: ['imageTextAlternative', 'imageStyle:inline', 'imageStyle:block', 'imageStyle:side']
       }
     });
+    console.log('Japanese editor created');
     
     console.log('CKEditor initialized successfully');
   } catch (error) {
     console.error('Failed to initialize CKEditor:', error);
+    alert('Failed to initialize editor: ' + error.message);
     throw error;
   }
 }
