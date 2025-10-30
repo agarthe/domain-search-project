@@ -97,7 +97,7 @@ A modern, Domainr.com-inspired domain search and availability checker built with
 - Pricing management for different TLDs
 - API key configuration
 - **Content pages management** with advanced editor
-  - Rich text editing with TinyMCE WYSIWYG editor
+  - Rich text editing with CKEditor 5 (free, open-source, no API key needed)
   - HTML/Visual mode toggle for advanced users
   - Live preview with EN/JA language switching
   - Version history tracking with rollback capability
@@ -132,7 +132,7 @@ A modern, Domainr.com-inspired domain search and availability checker built with
 - Full-screen modal display for content pages
 - Bilingual support (EN/JA) for all content
 - **Advanced content editor features:**
-  - **TinyMCE Rich Text Editor** - Professional WYSIWYG editing experience
+  - **CKEditor 5** - Free, open-source rich text editor (no API key needed)
   - **HTML/Visual Mode Toggle** - Switch between visual editor and HTML source code
   - **Live Preview** - Preview content with EN/JA language switching
   - **Version History** - Track all changes with view and rollback capabilities
@@ -312,14 +312,12 @@ A modern, Domainr.com-inspired domain search and availability checker built with
    - Set base URLs for external APIs
 
 5. **Configure Settings**
-   - **TinyMCE API Key**: Get free API key from https://www.tiny.cloud/auth/signup/
    - Configure domain broker link template
    - All settings saved to database and applied immediately
 
 6. **Manage Content Pages**
-   - **First**: Configure TinyMCE API key in Settings tab (free from https://www.tiny.cloud/auth/signup/)
    - Edit How to Use, Company, Terms, and Privacy pages
-   - Use rich text editor (TinyMCE) for visual content editing
+   - Use rich text editor (CKEditor 5) for visual content editing - completely free, no setup needed
    - Toggle between Visual and HTML editing modes
    - Preview content in English or Japanese
    - View version history and restore previous versions
@@ -434,8 +432,8 @@ npm run deploy:prod
 - **Last Updated**: 2025-10-30
 - **API Integration**: Domainr API via RapidAPI
 - **Recent Updates**: 
-  - Added advanced content editor with TinyMCE
-  - TinyMCE API key configuration in Settings tab
+  - Replaced TinyMCE with CKEditor 5 (free, open-source, no API key needed)
+  - Added advanced content editor with rich text editing
   - Implemented version history and rollback
   - Added HTML/Visual toggle and preview functionality
   - Simplified footer layout to single-row design
@@ -445,10 +443,9 @@ npm run deploy:prod
 1. **Configure External APIs** (Required)
    - Sign up for Domainr API on RapidAPI (https://rapidapi.com/domainr/api/domainr)
    - Add Domainr API key in admin panel (service_name: domainr_api)
-   - Sign up for free TinyMCE API key (https://www.tiny.cloud/auth/signup/)
-   - Add TinyMCE API key in admin panel Settings tab
    - Test domain search functionality
    - Optional: Sign up for WhoisXML API for enhanced WHOIS data
+   - Note: CKEditor 5 is free and requires no API key or configuration
 
 2. **Deploy to Production**
    - Create D1 production database
