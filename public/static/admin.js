@@ -916,8 +916,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================
 let contentPagesData = [];
 let currentEditingContentId = null;
-let ckEditorEnInstance = null;
-let ckEditorJaInstance = null;
+let quillEditorEn = null;
+let quillEditorJa = null;
 let currentEditorMode = 'visual'; // 'visual' or 'html'
 let currentPreviewLang = 'en';
 
@@ -965,33 +965,10 @@ function renderContentPages() {
   });
 }
 
-// Wait for CKEditor to be loaded
-function waitForCKEditor() {
-  return new Promise((resolve, reject) => {
-    let attempts = 0;
-    const maxAttempts = 50; // 5 seconds max
-    
-    const checkInterval = setInterval(() => {
-      attempts++;
-      
-      if (typeof ClassicEditor !== 'undefined') {
-        clearInterval(checkInterval);
-        resolve();
-      } else if (attempts >= maxAttempts) {
-        clearInterval(checkInterval);
-        reject(new Error('CKEditor failed to load'));
-      }
-    }, 100);
-  });
-}
-
 async function editContentPage(id) {
   try {
-    // Wait for CKEditor to load
-    try {
-      await waitForCKEditor();
-    } catch (error) {
-      alert('CKEditor failed to load. Please reload the page and try again.');
+    if (typeof Quill === 'undefined') {
+      alert('Quill editor is not loaded. Please reload the page.');
       return;
     }
     
@@ -1001,16 +978,18 @@ async function editContentPage(id) {
     currentEditingContentId = id;
     
     document.getElementById('titleEn').value = page.title_en || '';
-    document.getElementById('contentEn').value = page.content_en || '';
     document.getElementById('titleJa').value = page.title_ja || '';
-    document.getElementById('contentJa').value = page.content_ja || '';
     
     document.getElementById('contentEditModal').classList.remove('hidden');
     
-    // Initialize CKEditor if not already done
-    if (!ckEditorEnInstance) {
-      await initializeCKEditor();
+    // Initialize Quill editors if not already done
+    if (!quillEditorEn) {
+      initializeQuillEditors();
     }
+    
+    // Set content
+    quillEditorEn.root.innerHTML = page.content_en || '';
+    quillEditorJa.root.innerHTML = page.content_ja || '';
     
     // Switch to English tab by default
     switchEditorTab('english');
@@ -1026,18 +1005,14 @@ async function editContentPage(id) {
 async function saveContentPage() {
   if (!currentEditingContentId) return;
   
-  // Get content from CKEditor or textarea
+  // Get content from Quill editors or textarea
   let contentEn, contentJa;
-  if (ckEditorEnInstance && currentEditorMode === 'visual') {
-    contentEn = ckEditorEnInstance.getData();
+  if (currentEditorMode === 'visual' && quillEditorEn) {
+    contentEn = quillEditorEn.root.innerHTML;
+    contentJa = quillEditorJa.root.innerHTML;
   } else {
-    contentEn = document.getElementById('contentEn').value;
-  }
-  
-  if (ckEditorJaInstance && currentEditorMode === 'visual') {
-    contentJa = ckEditorJaInstance.getData();
-  } else {
-    contentJa = document.getElementById('contentJa').value;
+    contentEn = document.getElementById('contentEnHtml').value;
+    contentJa = document.getElementById('contentJaHtml').value;
   }
   
   const data = {
@@ -1052,15 +1027,9 @@ async function saveContentPage() {
     await axios.put(`/api/admin/content/${currentEditingContentId}`, data);
     document.getElementById('contentEditModal').classList.add('hidden');
     
-    // Destroy CKEditor instances
-    if (ckEditorEnInstance) {
-      await ckEditorEnInstance.destroy();
-      ckEditorEnInstance = null;
-    }
-    if (ckEditorJaInstance) {
-      await ckEditorJaInstance.destroy();
-      ckEditorJaInstance = null;
-    }
+    // Reset editors
+    quillEditorEn = null;
+    quillEditorJa = null;
     
     loadContentPages();
     alert('Content page updated successfully');
@@ -1071,85 +1040,37 @@ async function saveContentPage() {
 }
 
 // ============================================
-// CKEditor Initialization
+// Quill Editor Initialization
 // ============================================
-async function initializeCKEditor() {
-  try {
-    console.log('Initializing CKEditor...');
-    
-    // Check if elements exist
-    const contentEnElement = document.querySelector('#contentEn');
-    const contentJaElement = document.querySelector('#contentJa');
-    
-    console.log('contentEn element:', contentEnElement);
-    console.log('contentJa element:', contentJaElement);
-    
-    if (!contentEnElement || !contentJaElement) {
-      throw new Error('Textarea elements not found');
+function initializeQuillEditors() {
+  console.log('Initializing Quill editors...');
+  
+  const toolbarOptions = [
+    [{ 'header': [1, 2, 3, false] }],
+    ['bold', 'italic', 'underline', 'strike'],
+    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+    [{ 'align': [] }],
+    ['link', 'image'],
+    ['clean']
+  ];
+  
+  // Initialize English editor
+  quillEditorEn = new Quill('#contentEn', {
+    theme: 'snow',
+    modules: {
+      toolbar: toolbarOptions
     }
-    
-    // Initialize English editor
-    console.log('Creating English editor...');
-    ckEditorEnInstance = await ClassicEditor.create(contentEnElement, {
-      toolbar: {
-        items: [
-          'heading', '|',
-          'bold', 'italic', 'underline', 'strikethrough', '|',
-          'link', 'imageUpload', 'blockQuote', '|',
-          'bulletedList', 'numberedList', '|',
-          'alignment', '|',
-          'undo', 'redo', '|',
-          'sourceEditing'
-        ]
-      },
-      heading: {
-        options: [
-          { model: 'paragraph', title: 'Paragraph', class: 'ck-heading_paragraph' },
-          { model: 'heading1', view: 'h1', title: 'Heading 1', class: 'ck-heading_heading1' },
-          { model: 'heading2', view: 'h2', title: 'Heading 2', class: 'ck-heading_heading2' },
-          { model: 'heading3', view: 'h3', title: 'Heading 3', class: 'ck-heading_heading3' }
-        ]
-      },
-      image: {
-        toolbar: ['imageTextAlternative', 'imageStyle:inline', 'imageStyle:block', 'imageStyle:side']
-      }
-    });
-    console.log('English editor created');
-    
-    // Initialize Japanese editor
-    console.log('Creating Japanese editor...');
-    ckEditorJaInstance = await ClassicEditor.create(contentJaElement, {
-      toolbar: {
-        items: [
-          'heading', '|',
-          'bold', 'italic', 'underline', 'strikethrough', '|',
-          'link', 'imageUpload', 'blockQuote', '|',
-          'bulletedList', 'numberedList', '|',
-          'alignment', '|',
-          'undo', 'redo', '|',
-          'sourceEditing'
-        ]
-      },
-      heading: {
-        options: [
-          { model: 'paragraph', title: 'Paragraph', class: 'ck-heading_paragraph' },
-          { model: 'heading1', view: 'h1', title: 'Heading 1', class: 'ck-heading_heading1' },
-          { model: 'heading2', view: 'h2', title: 'Heading 2', class: 'ck-heading_heading2' },
-          { model: 'heading3', view: 'h3', title: 'Heading 3', class: 'ck-heading_heading3' }
-        ]
-      },
-      image: {
-        toolbar: ['imageTextAlternative', 'imageStyle:inline', 'imageStyle:block', 'imageStyle:side']
-      }
-    });
-    console.log('Japanese editor created');
-    
-    console.log('CKEditor initialized successfully');
-  } catch (error) {
-    console.error('Failed to initialize CKEditor:', error);
-    alert('Failed to initialize editor: ' + error.message);
-    throw error;
-  }
+  });
+  
+  // Initialize Japanese editor
+  quillEditorJa = new Quill('#contentJa', {
+    theme: 'snow',
+    modules: {
+      toolbar: toolbarOptions
+    }
+  });
+  
+  console.log('Quill editors initialized successfully');
 }
 
 // ============================================
@@ -1188,69 +1109,29 @@ function switchEditorTab(tabName) {
 // ============================================
 // HTML/Visual Mode Toggle
 // ============================================
-async function toggleEditorMode(editorId) {
+function toggleEditorMode(editorId) {
   const isEnglish = editorId === 'contentEn';
-  const editor = isEnglish ? ckEditorEnInstance : ckEditorJaInstance;
+  const editor = isEnglish ? quillEditorEn : quillEditorJa;
   const button = document.getElementById(`switchToHtml${isEnglish ? 'En' : 'Ja'}`);
+  const visualDiv = document.getElementById(editorId);
+  const htmlTextarea = document.getElementById(`${editorId}Html`);
   
   if (currentEditorMode === 'visual') {
     // Switch to HTML mode
-    if (editor) {
-      const content = editor.getData();
-      await editor.destroy();
-      if (isEnglish) {
-        ckEditorEnInstance = null;
-      } else {
-        ckEditorJaInstance = null;
-      }
-      document.getElementById(editorId).value = content;
-    }
+    const content = editor.root.innerHTML;
+    htmlTextarea.value = content;
+    visualDiv.style.display = 'none';
+    htmlTextarea.classList.remove('hidden');
     button.innerHTML = '<i class="fas fa-eye"></i> Visual';
     currentEditorMode = 'html';
   } else {
     // Switch to Visual mode
-    const content = document.getElementById(editorId).value;
-    
-    try {
-      const newEditor = await ClassicEditor.create(document.querySelector(`#${editorId}`), {
-        toolbar: {
-          items: [
-            'heading', '|',
-            'bold', 'italic', 'underline', 'strikethrough', '|',
-            'link', 'imageUpload', 'blockQuote', '|',
-            'bulletedList', 'numberedList', '|',
-            'alignment', '|',
-            'undo', 'redo', '|',
-            'sourceEditing'
-          ]
-        },
-        heading: {
-          options: [
-            { model: 'paragraph', title: 'Paragraph', class: 'ck-heading_paragraph' },
-            { model: 'heading1', view: 'h1', title: 'Heading 1', class: 'ck-heading_heading1' },
-            { model: 'heading2', view: 'h2', title: 'Heading 2', class: 'ck-heading_heading2' },
-            { model: 'heading3', view: 'h3', title: 'Heading 3', class: 'ck-heading_heading3' }
-          ]
-        },
-        image: {
-          toolbar: ['imageTextAlternative', 'imageStyle:inline', 'imageStyle:block', 'imageStyle:side']
-        }
-      });
-      
-      newEditor.setData(content);
-      
-      if (isEnglish) {
-        ckEditorEnInstance = newEditor;
-      } else {
-        ckEditorJaInstance = newEditor;
-      }
-      
-      button.innerHTML = '<i class="fas fa-code"></i> HTML';
-      currentEditorMode = 'visual';
-    } catch (error) {
-      console.error('Failed to recreate CKEditor:', error);
-      alert('Failed to switch to visual mode');
-    }
+    const content = htmlTextarea.value;
+    editor.root.innerHTML = content;
+    htmlTextarea.classList.add('hidden');
+    visualDiv.style.display = 'block';
+    button.innerHTML = '<i class="fas fa-code"></i> HTML';
+    currentEditorMode = 'visual';
   }
 }
 
@@ -1262,16 +1143,12 @@ function updatePreview() {
   const titleJa = document.getElementById('titleJa').value;
   
   let contentEn, contentJa;
-  if (ckEditorEnInstance && currentEditorMode === 'visual') {
-    contentEn = ckEditorEnInstance.getData();
+  if (currentEditorMode === 'visual' && quillEditorEn) {
+    contentEn = quillEditorEn.root.innerHTML;
+    contentJa = quillEditorJa.root.innerHTML;
   } else {
-    contentEn = document.getElementById('contentEn').value;
-  }
-  
-  if (ckEditorJaInstance && currentEditorMode === 'visual') {
-    contentJa = ckEditorJaInstance.getData();
-  } else {
-    contentJa = document.getElementById('contentJa').value;
+    contentEn = document.getElementById('contentEnHtml').value;
+    contentJa = document.getElementById('contentJaHtml').value;
   }
   
   const previewTitle = document.getElementById('previewTitle');
@@ -1443,42 +1320,24 @@ function insertImageUrl() {
 // Content edit modal listeners
 document.addEventListener('DOMContentLoaded', () => {
   // Modal close handlers
-  document.getElementById('closeContentEdit')?.addEventListener('click', async () => {
-    if (ckEditorEnInstance) {
-      await ckEditorEnInstance.destroy();
-      ckEditorEnInstance = null;
-    }
-    if (ckEditorJaInstance) {
-      await ckEditorJaInstance.destroy();
-      ckEditorJaInstance = null;
-    }
+  document.getElementById('closeContentEdit')?.addEventListener('click', () => {
+    quillEditorEn = null;
+    quillEditorJa = null;
     document.getElementById('contentEditModal').classList.add('hidden');
   });
 
-  document.getElementById('cancelContentEdit')?.addEventListener('click', async () => {
-    if (ckEditorEnInstance) {
-      await ckEditorEnInstance.destroy();
-      ckEditorEnInstance = null;
-    }
-    if (ckEditorJaInstance) {
-      await ckEditorJaInstance.destroy();
-      ckEditorJaInstance = null;
-    }
+  document.getElementById('cancelContentEdit')?.addEventListener('click', () => {
+    quillEditorEn = null;
+    quillEditorJa = null;
     document.getElementById('contentEditModal').classList.add('hidden');
   });
 
   document.getElementById('saveContentEdit')?.addEventListener('click', saveContentPage);
 
-  document.getElementById('contentEditModal')?.addEventListener('click', async (e) => {
+  document.getElementById('contentEditModal')?.addEventListener('click', (e) => {
     if (e.target.id === 'contentEditModal') {
-      if (ckEditorEnInstance) {
-        await ckEditorEnInstance.destroy();
-        ckEditorEnInstance = null;
-      }
-      if (ckEditorJaInstance) {
-        await ckEditorJaInstance.destroy();
-        ckEditorJaInstance = null;
-      }
+      quillEditorEn = null;
+      quillEditorJa = null;
       document.getElementById('contentEditModal').classList.add('hidden');
     }
   });

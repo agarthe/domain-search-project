@@ -2081,7 +2081,8 @@ GoDaddy,https://godaddy.com,https://godaddy.com/aff,logo2.png,1,2"></textarea>
                                     </button>
                                 </div>
                             </label>
-                            <textarea id="contentEn" rows="15" class="w-full"></textarea>
+                            <div id="contentEn" style="min-height: 400px; background: white;"></div>
+                            <textarea id="contentEnHtml" class="w-full hidden" rows="15"></textarea>
                         </div>
                     </div>
                     
@@ -2103,7 +2104,8 @@ GoDaddy,https://godaddy.com,https://godaddy.com/aff,logo2.png,1,2"></textarea>
                                     </button>
                                 </div>
                             </label>
-                            <textarea id="contentJa" rows="15" class="w-full"></textarea>
+                            <div id="contentJa" style="min-height: 400px; background: white;"></div>
+                            <textarea id="contentJaHtml" class="w-full hidden" rows="15"></textarea>
                         </div>
                     </div>
                     
@@ -2166,8 +2168,15 @@ GoDaddy,https://godaddy.com,https://godaddy.com/aff,logo2.png,1,2"></textarea>
             </div>
         </div>
 
+        <!-- Quill Editor CSS -->
+        <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+        
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <script src="https://cdn.ckeditor.com/ckeditor5/43.3.1/classic/ckeditor.js"></script>
+        <!-- Quill Editor JS -->
+        <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+        <script>
+          console.log('Quill loaded:', typeof Quill !== 'undefined');
+        </script>
         <script src="/static/admin.js"></script>
     </body>
     </html>
