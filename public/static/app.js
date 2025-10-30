@@ -170,7 +170,13 @@ const translations = {
     'header.theme': 'Theme',
     'header.admin': 'Admin',
     'error.search': 'Failed to search domains. Please try again.',
-    'error.whois': 'Failed to load WHOIS data.'
+    'error.whois': 'Failed to load WHOIS data.',
+    'footer.how_to_use': 'How to Use',
+    'footer.links_title': 'Company',
+    'footer.company': 'Company',
+    'footer.terms': 'Terms',
+    'footer.privacy': 'Privacy',
+    'footer.connect': 'Connect'
   },
   ja: {
     'tagline': 'ドメインさがすワン',
@@ -222,7 +228,13 @@ const translations = {
     'header.theme': 'テーマ',
     'header.admin': '管理画面',
     'error.search': 'ドメイン検索に失敗しました。もう一度お試しください。',
-    'error.whois': 'WHOISデータの読み込みに失敗しました。'
+    'error.whois': 'WHOISデータの読み込みに失敗しました。',
+    'footer.how_to_use': '使い方',
+    'footer.links_title': '運営会社',
+    'footer.company': '運営会社',
+    'footer.terms': '利用規約',
+    'footer.privacy': 'プライバシー',
+    'footer.connect': '公式SNS'
   }
 };
 
@@ -925,4 +937,45 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('domainModal').classList.add('hidden');
     }
   });
+  
+  // Content modal listeners
+  document.getElementById('closeContentModal').addEventListener('click', () => {
+    document.getElementById('contentModal').classList.add('hidden');
+  });
+  
+  document.getElementById('contentModal').addEventListener('click', (e) => {
+    if (e.target.id === 'contentModal') {
+      document.getElementById('contentModal').classList.add('hidden');
+    }
+  });
 });
+
+// ============================================
+// Content Page Display
+// ============================================
+async function showContentPage(pageKey) {
+  const modal = document.getElementById('contentModal');
+  const title = document.getElementById('contentModalTitle');
+  const body = document.getElementById('contentModalBody');
+  
+  modal.classList.remove('hidden');
+  body.innerHTML = '<div class="loader mx-auto"></div>';
+  
+  try {
+    const response = await axios.get(`/api/content/${pageKey}`);
+    const page = response.data;
+    
+    // Set title based on current language
+    title.textContent = currentLang === 'ja' ? page.title_ja : page.title_en;
+    
+    // Set content based on current language
+    const content = currentLang === 'ja' ? page.content_ja : page.content_en;
+    body.innerHTML = content || '<p>No content available.</p>';
+  } catch (error) {
+    console.error('Failed to load content:', error);
+    body.innerHTML = '<p class="text-red-600">Failed to load content. Please try again.</p>';
+  }
+}
+
+// Make showContentPage globally accessible
+window.showContentPage = showContentPage;

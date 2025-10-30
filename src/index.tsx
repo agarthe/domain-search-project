@@ -913,6 +913,110 @@ app.get('/api/admin/history/export/:month', async (c) => {
 })
 
 // ============================================
+// Content Pages API
+// ============================================
+
+/**
+ * GET /api/content/:page_key
+ * Get content page by key (public endpoint)
+ */
+app.get('/api/content/:page_key', async (c) => {
+  try {
+    const db = c.env.DB
+    const pageKey = c.req.param('page_key')
+    
+    const result = await db.prepare(`
+      SELECT page_key, title_en, title_ja, content_en, content_ja
+      FROM content_pages
+      WHERE page_key = ? AND is_active = 1
+    `).bind(pageKey).first()
+    
+    if (!result) {
+      return c.json({ error: 'Page not found' }, 404)
+    }
+    
+    return c.json(result)
+  } catch (error) {
+    return c.json({ error: 'Failed to fetch content' }, 500)
+  }
+})
+
+/**
+ * GET /api/admin/content
+ * Get all content pages (admin)
+ */
+app.get('/api/admin/content', async (c) => {
+  try {
+    const db = c.env.DB
+    const result = await db.prepare(`
+      SELECT id, page_key, title_en, title_ja, 
+             SUBSTR(content_en, 1, 100) as content_en_preview,
+             SUBSTR(content_ja, 1, 100) as content_ja_preview,
+             is_active, updated_at
+      FROM content_pages
+      ORDER BY page_key
+    `).all()
+    
+    return c.json(result.results)
+  } catch (error) {
+    return c.json({ error: 'Failed to fetch content pages' }, 500)
+  }
+})
+
+/**
+ * GET /api/admin/content/:id
+ * Get full content page by ID (admin)
+ */
+app.get('/api/admin/content/:id', async (c) => {
+  try {
+    const db = c.env.DB
+    const id = c.req.param('id')
+    
+    const result = await db.prepare(`
+      SELECT * FROM content_pages WHERE id = ?
+    `).bind(id).first()
+    
+    if (!result) {
+      return c.json({ error: 'Page not found' }, 404)
+    }
+    
+    return c.json(result)
+  } catch (error) {
+    return c.json({ error: 'Failed to fetch content page' }, 500)
+  }
+})
+
+/**
+ * PUT /api/admin/content/:id
+ * Update content page (admin)
+ */
+app.put('/api/admin/content/:id', async (c) => {
+  try {
+    const db = c.env.DB
+    const id = c.req.param('id')
+    const data = await c.req.json()
+    
+    await db.prepare(`
+      UPDATE content_pages 
+      SET title_en = ?, title_ja = ?, content_en = ?, content_ja = ?, 
+          is_active = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `).bind(
+      data.title_en,
+      data.title_ja,
+      data.content_en,
+      data.content_ja,
+      data.is_active,
+      id
+    ).run()
+    
+    return c.json({ success: true })
+  } catch (error) {
+    return c.json({ error: 'Failed to update content page' }, 500)
+  }
+})
+
+// ============================================
 // Main Page Route
 // ============================================
 
@@ -1307,20 +1411,24 @@ app.get('/', (c) => {
                                 Fast domain search tool
                             </p>
                         </a>
+                        <ul class="space-y-1 text-xs mt-3" style="color: var(--text-secondary);">
+                            <li><a href="javascript:void(0)" onclick="showContentPage('how_to_use')" class="hover:text-blue-600 transition" data-i18n="footer.how_to_use">How to Use</a></li>
+                        </ul>
                     </div>
                     
                     <!-- Quick Links -->
                     <div class="footer-links">
-                        <h4 class="font-semibold text-sm mb-2">Links</h4>
+                        <h4 class="font-semibold text-sm mb-2" data-i18n="footer.links_title">Company</h4>
                         <ul class="space-y-1 text-xs" style="color: var(--text-secondary);">
-                            <li><a href="/" class="hover:text-blue-600 transition">Home</a></li>
-                            <li><a href="/admin" class="hover:text-blue-600 transition">Admin</a></li>
+                            <li><a href="javascript:void(0)" onclick="showContentPage('company')" class="hover:text-blue-600 transition" data-i18n="footer.company">Company</a></li>
+                            <li><a href="javascript:void(0)" onclick="showContentPage('terms')" class="hover:text-blue-600 transition" data-i18n="footer.terms">Terms</a></li>
+                            <li><a href="javascript:void(0)" onclick="showContentPage('privacy')" class="hover:text-blue-600 transition" data-i18n="footer.privacy">Privacy</a></li>
                         </ul>
                     </div>
                     
                     <!-- Social -->
                     <div class="footer-social">
-                        <h4 class="font-semibold text-sm mb-2">Connect</h4>
+                        <h4 class="font-semibold text-sm mb-2" data-i18n="footer.connect">Connect</h4>
                         <div class="flex space-x-3">
                             <a href="https://x.com/inuname" target="_blank" rel="noopener noreferrer" 
                                class="text-lg hover:text-blue-400 transition" style="color: var(--text-secondary);" title="X (Twitter)">
@@ -1344,6 +1452,19 @@ app.get('/', (c) => {
                 </div>
             </div>
         </footer>
+        
+        <!-- Content Page Modal -->
+        <div id="contentModal" class="modal-overlay hidden">
+            <div class="modal-content" style="max-width: 800px;">
+                <div class="flex justify-between items-center mb-4 sticky top-0 z-10 pb-4" style="background-color: var(--bg-primary); border-bottom: 1px solid var(--border-color);">
+                    <h3 class="text-xl font-bold" id="contentModalTitle">Content</h3>
+                    <button id="closeContentModal" class="text-2xl hover:opacity-70 px-2">&times;</button>
+                </div>
+                <div id="contentModalBody" class="text-sm prose prose-sm max-w-none" style="color: var(--text-primary);">
+                    <div class="loader mx-auto"></div>
+                </div>
+            </div>
+        </div>
 
         <!-- Domain Details Modal -->
         <div id="domainModal" class="modal-overlay hidden">
@@ -1467,6 +1588,9 @@ app.get('/admin', (c) => {
                     </button>
                     <button class="tab-btn px-4 py-2 font-semibold" style="border-bottom: 2px solid transparent;" data-tab="history">
                         <i class="fas fa-history mr-2"></i>History
+                    </button>
+                    <button class="tab-btn px-4 py-2 font-semibold" style="border-bottom: 2px solid transparent;" data-tab="content">
+                        <i class="fas fa-file-alt mr-2"></i>Content Pages
                     </button>
                 </nav>
             </div>
@@ -1763,7 +1887,66 @@ GoDaddy,https://godaddy.com,https://godaddy.com/aff,logo2.png,1,2"></textarea>
                     </div>
                 </div>
             </div>
+            
+            <!-- Content Pages Tab -->
+            <div id="contentTab" class="tab-content hidden">
+                <div class="panel-card rounded-lg p-6 mb-6">
+                    <h2 class="text-xl font-bold mb-4">Content Pages Management</h2>
+                    <p class="text-sm mb-4" style="color: var(--text-secondary);">
+                        Manage content for footer links (How to Use, Company, Terms, Privacy)
+                    </p>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full" id="contentTable">
+                            <thead>
+                                <tr style="border-bottom: 1px solid var(--border-color);">
+                                    <th class="text-left py-3 px-4">Page</th>
+                                    <th class="text-left py-3 px-4">Title (EN)</th>
+                                    <th class="text-left py-3 px-4">Title (JA)</th>
+                                    <th class="text-left py-3 px-4">Last Updated</th>
+                                    <th class="text-left py-3 px-4">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Will be populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </main>
+        
+        <!-- Content Page Edit Modal -->
+        <div id="contentEditModal" class="modal-overlay hidden">
+            <div class="modal-content" style="max-width: 1000px;">
+                <div class="flex justify-between items-center mb-4 sticky top-0 z-10 pb-4" style="background-color: var(--bg-primary); border-bottom: 1px solid var(--border-color);">
+                    <h3 class="text-xl font-bold" id="contentEditTitle">Edit Content Page</h3>
+                    <button id="closeContentEdit" class="text-2xl hover:opacity-70 px-2">&times;</button>
+                </div>
+                <div id="contentEditBody">
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold mb-2">English Title</label>
+                        <input type="text" id="titleEn" class="w-full px-3 py-2 border rounded" style="border-color: var(--border-color); background-color: var(--bg-primary); color: var(--text-primary);">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold mb-2">English Content (HTML)</label>
+                        <textarea id="contentEn" rows="10" class="w-full px-3 py-2 border rounded font-mono text-sm" style="border-color: var(--border-color); background-color: var(--bg-primary); color: var(--text-primary);"></textarea>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold mb-2">Japanese Title (日本語タイトル)</label>
+                        <input type="text" id="titleJa" class="w-full px-3 py-2 border rounded" style="border-color: var(--border-color); background-color: var(--bg-primary); color: var(--text-primary);">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold mb-2">Japanese Content (日本語コンテンツ HTML)</label>
+                        <textarea id="contentJa" rows="10" class="w-full px-3 py-2 border rounded font-mono text-sm" style="border-color: var(--border-color); background-color: var(--bg-primary); color: var(--text-primary);"></textarea>
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <button id="cancelContentEdit" class="px-4 py-2 rounded" style="background-color: var(--bg-secondary);">Cancel</button>
+                        <button id="saveContentEdit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
         <script src="/static/admin.js"></script>

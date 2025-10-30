@@ -820,6 +820,8 @@ document.addEventListener('DOMContentLoaded', () => {
         loadSettings();
       } else if (btn.dataset.tab === 'history') {
         loadHistory();
+      } else if (btn.dataset.tab === 'content') {
+        loadContentPages();
       }
     });
   });
@@ -909,6 +911,114 @@ document.addEventListener('DOMContentLoaded', () => {
   loadRegistrars();
 });
 
+// ============================================
+// Content Pages Management
+// ============================================
+let contentPagesData = [];
+let currentEditingContentId = null;
+
+async function loadContentPages() {
+  try {
+    const response = await axios.get('/api/admin/content');
+    contentPagesData = response.data;
+    renderContentPages();
+  } catch (error) {
+    console.error('Failed to load content pages:', error);
+    alert('Failed to load content pages');
+  }
+}
+
+function renderContentPages() {
+  const tbody = document.querySelector('#contentTable tbody');
+  tbody.innerHTML = '';
+
+  contentPagesData.forEach(page => {
+    const row = document.createElement('tr');
+    row.style.borderBottom = '1px solid var(--border-color)';
+    
+    const pageKeyLabels = {
+      'how_to_use': 'How to Use',
+      'company': 'Company',
+      'terms': 'Terms of Service',
+      'privacy': 'Privacy Policy'
+    };
+    
+    row.innerHTML = `
+      <td class="py-3 px-4 font-medium">${pageKeyLabels[page.page_key] || page.page_key}</td>
+      <td class="py-3 px-4">${page.title_en}</td>
+      <td class="py-3 px-4">${page.title_ja}</td>
+      <td class="py-3 px-4 text-sm" style="color: var(--text-secondary);">
+        ${page.updated_at ? new Date(page.updated_at).toLocaleString() : '-'}
+      </td>
+      <td class="py-3 px-4">
+        <button onclick="editContentPage(${page.id})" 
+                class="text-blue-600 hover:text-blue-800 mr-3">
+          <i class="fas fa-edit"></i> Edit
+        </button>
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+async function editContentPage(id) {
+  try {
+    const response = await axios.get(`/api/admin/content/${id}`);
+    const page = response.data;
+    
+    currentEditingContentId = id;
+    
+    document.getElementById('titleEn').value = page.title_en || '';
+    document.getElementById('contentEn').value = page.content_en || '';
+    document.getElementById('titleJa').value = page.title_ja || '';
+    document.getElementById('contentJa').value = page.content_ja || '';
+    
+    document.getElementById('contentEditModal').classList.remove('hidden');
+  } catch (error) {
+    console.error('Failed to load content page:', error);
+    alert('Failed to load content page');
+  }
+}
+
+async function saveContentPage() {
+  if (!currentEditingContentId) return;
+  
+  const data = {
+    title_en: document.getElementById('titleEn').value,
+    content_en: document.getElementById('contentEn').value,
+    title_ja: document.getElementById('titleJa').value,
+    content_ja: document.getElementById('contentJa').value,
+    is_active: 1
+  };
+  
+  try {
+    await axios.put(`/api/admin/content/${currentEditingContentId}`, data);
+    document.getElementById('contentEditModal').classList.add('hidden');
+    loadContentPages();
+    alert('Content page updated successfully');
+  } catch (error) {
+    console.error('Failed to save content page:', error);
+    alert('Failed to save content page');
+  }
+}
+
+// Content edit modal listeners
+document.getElementById('closeContentEdit').addEventListener('click', () => {
+  document.getElementById('contentEditModal').classList.add('hidden');
+});
+
+document.getElementById('cancelContentEdit').addEventListener('click', () => {
+  document.getElementById('contentEditModal').classList.add('hidden');
+});
+
+document.getElementById('saveContentEdit').addEventListener('click', saveContentPage);
+
+document.getElementById('contentEditModal').addEventListener('click', (e) => {
+  if (e.target.id === 'contentEditModal') {
+    document.getElementById('contentEditModal').classList.add('hidden');
+  }
+});
+
 // Make functions available globally
 window.editRegistrar = editRegistrar;
 window.deleteRegistrar = deleteRegistrar;
@@ -916,3 +1026,4 @@ window.editPricing = editPricing;
 window.deletePricing = deletePricing;
 window.editApiKey = editApiKey;
 window.downloadMonthlyCSV = downloadMonthlyCSV;
+window.editContentPage = editContentPage;
